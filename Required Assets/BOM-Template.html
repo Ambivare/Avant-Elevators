@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bill of Materials - {{document.number}}</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  @page { size: A4 portrait; margin: 0; }
+  html, body { width: 210mm; font-family: 'Montserrat', 'Segoe UI', Arial, sans-serif; font-size: 9.5pt; color: #111; background: #fff; }
+
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+  }
+  .header-img { width: 100%; display: block; height: auto; }
+  .footer-img { width: 100%; display: block; }
+
+  .body-wrap {
+    flex: 1;
+    padding: 5mm 10mm 3mm 10mm;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .addr-row { display: flex; border: 1px solid #000; border-bottom: none; }
+  .addr-left { flex: 0 0 62%; padding: 4px 8px; border-right: 1px solid #000; }
+  .addr-right { flex: 1; padding: 4px 8px; text-align: right; }
+  .addr-label { font-size: 7pt; color: #888; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; margin-bottom: 1px; }
+  .addr-value { font-size: 9.5pt; font-weight: 700; }
+  .addr-sub { font-size: 8.5pt; color: #333; }
+  .ref-value { font-size: 9pt; font-weight: 700; }
+
+  .bom-banner {
+    background: #D9E1F2;
+    border: 1px solid #000;
+    border-top: none;
+    text-align: center;
+    font-size: 12pt;
+    font-weight: 700;
+    letter-spacing: 3px;
+    padding: 5px 0;
+    color: #000;
+  }
+
+  .items-table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+  .items-table th { background: #1F3864; color: #fff; font-weight: 700; padding: 5px 6px; border: 1.5px solid #000; font-size: 8.5pt; }
+  .items-table td { padding: 4px 6px; border: 1px solid #000; vertical-align: top; }
+
+  .c, .center { text-align: center; }
+  .l, .left   { text-align: left; }
+  .r, .right  { text-align: right; }
+
+  .row-alt td, .row-even td { background: transparent; }
+
+  .sub-row td { background: #EDEDED; font-weight: 700; padding: 4px 6px; border: 1px solid #000; text-align: right; }
+  .gt-row  td { background: #1F3864; color: #fff; font-weight: 700; padding: 5px 6px; border: 1.5px solid #000; font-size: 9.5pt; text-align: right; }
+
+  .amt-words { background: #FFF0E0; border: 1px solid #000; border-top: none; padding: 5px 8px; font-size: 8.5pt; font-weight: 700; }
+
+  .sec-hdr { background: #D9E1F2; border: 1px solid #000; border-top: none; padding: 4px 8px; font-size: 9.5pt; font-weight: 700; letter-spacing: 0.3px; }
+  .sec-row { border: 1px solid #000; border-top: none; padding: 3px 8px; font-size: 8.5pt; line-height: 1.45; }
+  .gap { height: 2.5mm; }
+
+  .sig-hdr { display: flex; border: 1px solid #000; border-top: none; }
+  .sig-hl, .sig-hr { flex: 1; background: #D9E1F2; text-align: center; font-weight: 700; font-size: 9.5pt; padding: 5px 6px; }
+  .sig-hl { border-right: 1px solid #000; }
+  .sig-body { display: flex; border: 1px solid #000; border-top: none; height: 22mm; }
+  .sig-bl, .sig-br { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; padding: 4px 10px 6px; }
+  .sig-bl { border-right: 1px solid #000; }
+  .sig-line { border-top: 1px solid #000; margin-bottom: 3px; }
+  .sig-lbl { text-align: center; font-weight: 700; font-size: 8.5pt; }
+
+  @media print { html, body { margin: 0; padding: 0; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <img src="https://nitiipath.in/avant/header.jpg" class="header-img" alt="Avant Header">
+
+  <div class="body-wrap">
+
+    <div class="addr-row">
+      <div class="addr-left">
+        <div class="addr-label">Prepared For</div>
+        <div class="addr-sub" style="font-weight:600;margin-bottom:1px;">Secretary / Chairman,</div>
+        <div class="addr-value">{{client.societyName}}</div>
+        <div class="addr-sub">{{client.address}}</div>
+      </div>
+      <div class="addr-right">
+        <div class="ref-value">BOM No : {{document.number}}</div>
+        <div class="ref-value" style="margin-top:3px;">Date : {{document.date}}</div>
+        <div class="addr-sub" style="margin-top:5px;font-weight:700;">{{client.name}}</div>
+        <div class="addr-sub">{{client.contactPerson}}</div>
+        <div class="addr-sub">{{client.phone}}</div>
+        <div class="addr-sub">{{client.email}}</div>
+      </div>
+    </div>
+
+    <div class="bom-banner">BILL OF MATERIALS</div>
+
+    <!--
+      {{items}} is auto-replaced with <tr> rows — each row has 8 columns:
+      S.No | Part Name | Description | Part No. | Qty | Unit | Unit Cost | Total
+      (Description comes from the per-item "Description" field in the BOM form)
+    -->
+    <table class="items-table">
+      <colgroup>
+        <col style="width:4%">
+        <col style="width:18%">
+        <col style="width:28%">
+        <col style="width:9%">
+        <col style="width:6%">
+        <col style="width:6%">
+        <col style="width:13%">
+        <col style="width:16%">
+      </colgroup>
+      <thead>
+        <tr>
+          <th class="c">S.No</th>
+          <th class="l">PART NAME</th>
+          <th class="l">DESCRIPTION</th>
+          <th class="c">PART NO.</th>
+          <th class="c">QTY</th>
+          <th class="c">UNIT</th>
+          <th class="r">UNIT COST</th>
+          <th class="r">TOTAL</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{items}}
+        <tr class="sub-row"><td colspan="7">GRAND TOTAL</td><td>{{total}}</td></tr>
+      </tbody>
+    </table>
+
+    <div class="amt-words">Amount In Words: {{amountInWords}}</div>
+
+    <div class="sec-hdr">Notes / Remarks</div>
+    <div class="sec-row" style="min-height:12mm;">{{notes}}</div>
+
+    <div class="sec-hdr" style="margin-top:2.5mm;">Bank Details</div>
+    <div class="sec-row">Bank: {{company.bankName}} &nbsp;&nbsp;|&nbsp;&nbsp; Branch: {{company.bankBranch}}</div>
+    <div class="sec-row">Account No: {{company.accountNo}} &nbsp;&nbsp;|&nbsp;&nbsp; IFSC: {{company.ifsc}}</div>
+
+    <div class="gap"></div>
+
+    <div class="sig-hdr">
+      <div class="sig-hl">ACCEPTANCE</div>
+      <div class="sig-hr">For {{company.name}}</div>
+    </div>
+    <div class="sig-body">
+      <div class="sig-bl">
+        <div class="sig-line"></div>
+        <div class="sig-lbl">Authorised Signatory with Stamp</div>
+      </div>
+      <div class="sig-br">
+        <div class="sig-line"></div>
+        <div class="sig-lbl">Authorised Signatory</div>
+      </div>
+    </div>
+
+  </div><!-- /.body-wrap -->
+
+  <img src="https://impdocuments-110114701220-eu-north-1-an.s3.eu-north-1.amazonaws.com/Footer_AEC.png" class="footer-img" alt="Avant Footer">
+
+</div>
+</body>
+</html>

@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Avant Elevators – {{CLIENT_NAME}} AMC Proposal</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: Arial, sans-serif;
+    font-size: 11pt;
+    color: #1a1a1a;
+    background: #e0e0e0;
+  }
+
+  /* ── PAGE SHELL ── */
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    height: 297mm;
+    background: #fff;
+    margin: 10mm auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    page-break-after: always;
+    position: relative;
+  }
+
+  /* ── HEADER / FOOTER IMAGES ── */
+  .page-header {
+    width: 100%;
+    flex-shrink: 0;
+  }
+  .page-header img {
+    width: 100%;
+    display: block;
+  }
+
+  .page-footer {
+    width: 100%;
+    flex-shrink: 0;
+    margin-top: auto;
+  }
+  .page-footer img {
+    width: 100%;
+    display: block;
+  }
+
+  /* ── CONTENT AREA ── */
+  .content {
+    flex: 1;
+    padding: 6mm 14mm 4mm 14mm;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── TYPOGRAPHY ── */
+  p { margin-bottom: 5pt; line-height: 1.45; }
+  strong { font-weight: bold; }
+
+  .date-line {
+    text-align: right;
+    font-size: 10.5pt;
+    margin-bottom: 8pt;
+  }
+
+  .address-block { margin-bottom: 8pt; line-height: 1.55; font-size: 10.5pt; }
+  .address-block strong { font-size: 10.5pt; }
+
+  .subject-line {
+    font-weight: bold;
+    font-size: 10.5pt;
+    margin-bottom: 6pt;
+  }
+
+  .contact-block { font-weight: bold; font-size: 10.5pt; margin-bottom: 8pt; }
+
+  .dear { margin-bottom: 8pt; font-size: 10.5pt; }
+
+  .body-text { font-size: 10pt; line-height: 1.5; margin-bottom: 7pt; }
+
+  .sign-block { margin-top: 10pt; font-size: 10.5pt; line-height: 1.7; }
+  .sign-block strong { display: block; }
+
+  .encl-block { margin-top: 10pt; font-size: 10pt; }
+  .encl-block ol { margin-left: 30pt; }
+  .encl-block li { margin-bottom: 2pt; }
+
+  /* ── AMC OFFER TABLE ── */
+  .lift-table, .offer-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 9pt;
+    font-size: 10pt;
+  }
+  .lift-table th, .lift-table td {
+    border: 1px solid #333;
+    padding: 5pt 8pt;
+    text-align: center;
+  }
+  .lift-table th { background: #f0f0f0; font-weight: bold; }
+
+  .offer-table td {
+    border: 1px solid #333;
+    padding: 5pt 9pt;
+    vertical-align: middle;
+  }
+  .offer-table td:first-child { font-weight: bold; width: 52%; }
+  .offer-table .highlight { font-weight: bold; font-style: italic; text-decoration: underline; }
+  .offer-table .italic-val { font-style: italic; text-decoration: underline; }
+
+  /* ── INSPECTION PAGE ── */
+  .bullet-list { margin-left: 24pt; margin-bottom: 7pt; font-size: 10pt; }
+  .bullet-list li { margin-bottom: 3pt; list-style-type: disc; }
+
+  /* ── AMC COVERAGE PAGE ── */
+  .section-title { font-size: 11pt; font-weight: bold; text-decoration: underline; margin-bottom: 6pt; }
+  .sub-heading { font-weight: bold; font-size: 10.5pt; margin: 6pt 0 4pt 0; }
+  .numbered-list { margin-left: 16pt; font-size: 10pt; }
+  .numbered-list li { margin-bottom: 5pt; line-height: 1.45; }
+
+  .pwd-section-title {
+    text-align: center;
+    font-size: 14pt;
+    font-weight: bold;
+    margin: 10pt 0 8pt 0;
+    letter-spacing: 0.5pt;
+  }
+  .pwd-sub { font-weight: bold; text-decoration: underline; font-size: 10.5pt; margin-bottom: 6pt; }
+  .pwd-item { font-size: 10pt; font-weight: bold; margin-bottom: 6pt; }
+  .pwd-item span { font-weight: normal; }
+  .pwd-declaration { font-weight: bold; font-size: 10pt; margin-top: 8pt; line-height: 1.5; }
+
+  /* ── ROUTINE CHECKLIST ── */
+  .checklist-wrapper {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 12pt;
+    font-size: 9.5pt;
+    margin-bottom: 8pt;
+  }
+  .check-section-title {
+    font-size: 10pt;
+    font-weight: bold;
+    text-decoration: underline;
+    margin-bottom: 5pt;
+  }
+  .check-ol { margin-left: 16pt; }
+  .check-ol li { margin-bottom: 2pt; }
+
+  .signal-section { font-size: 9.5pt; margin-bottom: 8pt; }
+  .signal-section .check-section-title { margin-bottom: 4pt; }
+  .signal-ol { margin-left: 16pt; list-style-type: lower-alpha; }
+  .signal-ol li { margin-bottom: 2pt; }
+
+  .other-checks-box {
+    border: 1.5px solid #333;
+    border-radius: 3px;
+    padding: 7pt 10pt;
+    font-size: 9.5pt;
+    margin-bottom: 10pt;
+  }
+  .other-checks-box .box-title { font-weight: bold; margin-bottom: 4pt; }
+  .other-checks-box ul { margin-left: 20pt; list-style-type: circle; }
+  .other-checks-box li { margin-bottom: 2pt; }
+
+  .sign-footer-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10pt;
+    margin-top: 8pt;
+  }
+  .sign-box {
+    border: 1.5px solid #333;
+    padding: 6pt 10pt;
+    min-height: 55pt;
+    font-size: 9.5pt;
+    font-weight: bold;
+  }
+
+  /* ── NOTE BOX ── */
+  .note-box {
+    font-size: 10pt;
+    font-style: italic;
+    margin-top: 7pt;
+    margin-bottom: 6pt;
+  }
+
+  @media print {
+    body { background: #fff; }
+    .page { margin: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE 1 – COVERING LETTER
+═══════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <img src="{{HEADER_IMG_URL}}" alt="Header">
+  </div>
+
+  <div class="content">
+    <div class="date-line">Date – {{LETTER_DATE}}</div>
+
+    <div class="address-block">
+      <strong>To,</strong><br>
+      <strong>The Secretary/Chairman,</strong><br>
+      <strong>{{CLIENT_NAME}},</strong><br>
+      <strong>{{CLIENT_ADDRESS}}</strong>
+    </div>
+
+    <p class="subject-line">Site Address : Same as above</p>
+
+    <p class="subject-line">Subject : Our Offer for the Modification of your society's lift.</p>
+
+    <div class="contact-block">
+      Contact Person: {{CONTACT_PERSON}}<br>
+      Contact Number: {{CONTACT_PHONE}}
+    </div>
+
+    <p class="dear">Dear Sir,</p>
+
+    <p class="body-text">We thank you very much for the kind courtesy extended by you when the undersigned visited your site.</p>
+
+    <p class="body-text">We would like to introduce ourselves as Avant Elevators, (under license from Avant Engineering &amp; Contractors), by a core group of engineers having vast expertise in installation, retrofitting and maintenance of all types of elevators. Active in the industry since 1990s, we are backed by a pool of engineers and elevator technicians, well experienced in the field of modern elevator technology. We have a rich clientele that include prestigious commercial and residential premises in and around Navi Mumbai, Mumbai and Thane. We provide technically sound solutions that are commercially viable. In addition to Mumbai, we also undertake turnkey projects across India and abroad. We are undertaking the installation of our own brand lift and also providing the maintenance and servicing for other brands like Otis, Olympus, Kone, Excel or any other brand lift.</p>
+
+    <p class="body-text">Attached below is our best and lowest quotation for your approval. We shall be grateful if you give us an opportunity. If you have any queries, please feel free to call upon us, and look forward to receiving your valued orders. We remain committed to providing you with our best service at all times.</p>
+
+    <p class="body-text">Yours faithfully,</p>
+
+    <div class="sign-block" style="margin-top:6pt;">
+      For <strong>M/s. AVANT ENGINEERING &amp; CONTRACTORS</strong>
+      <strong>RAMAKRISHNAN M.V.</strong>
+      <strong>Authorised Signatory</strong>
+      <strong>Mob: 98333 67567</strong>
+    </div>
+
+    <div class="encl-block" style="margin-top:0pt;">
+      <strong>Encl.:</strong> -
+      <ol type="i" style="margin-top:5pt;">
+        <li>AMC proposal</li>
+        <li>Inspection Report</li>
+        <li>Annexure I – AMC Coverage</li>
+        <li>PWD Mandatory Items for reference</li>
+        <li>Routine Service Checklist</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <img src="{{FOOTER_IMG_URL}}" alt="Footer">
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE 2 – AMC PROPOSAL
+═══════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <img src="{{HEADER_IMG_URL}}" alt="Header">
+  </div>
+
+  <div class="content">
+    <div class="date-line">Date – {{LETTER_DATE}}</div>
+
+    <div class="address-block">
+      <strong>To,</strong><br>
+      <strong>The Secretary/Chairman,</strong><br>
+      <strong>{{CLIENT_NAME}},</strong><br>
+      <strong>{{CLIENT_ADDRESS}}</strong>
+    </div>
+
+    <p class="subject-line">Site Address : Same as above</p>
+
+    <div class="contact-block">
+      Contact Person: {{CONTACT_PERSON}}<br>
+      Contact Number: {{CONTACT_PHONE}}
+    </div>
+
+    <p class="subject-line">SUBJECT: &nbsp;AMC proposal</p>
+
+    <p class="dear">Dear Sir,</p>
+
+    <p class="body-text">We are pleased to offer you Routine Service &amp; Complaint Call Service under the annual contract.</p>
+
+    <!-- Lift Specs Table -->
+    <table class="lift-table">
+      <thead>
+        <tr>
+          <th>Make Of Lift</th>
+          <th>Type of Door and Cabin</th>
+          <th>Typology</th>
+          <th>Load / Passenger Capacity</th>
+          <th>Height</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>{{LIFT_MAKE}}</td>
+          <td>{{LIFT_DOOR_TYPE}}</td>
+          <td>{{LIFT_TYPOLOGY}}</td>
+          <td>{{LIFT_LOAD}}</td>
+          <td>{{LIFT_HEIGHT}}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="sub-heading">OUR OFFER</p>
+
+    <!-- Offer Table -->
+    <table class="offer-table">
+      <tbody>
+        <tr>
+          <td><strong>NON - COMPREHENSIVE AMC</strong></td>
+          <td class="italic-val">{{OFFER_NON_COMP}}</td>
+        </tr>
+        <!-- DISCOUNT_ROW_START -->
+        <tr>
+          <td><strong>DISCOUNT</strong></td>
+          <td class="italic-val">{{OFFER_DISCOUNT}}</td>
+        </tr>
+        <!-- DISCOUNT_ROW_END -->
+        <tr>
+          <td><strong>FINAL NON COMPREHENSIVE AMC</strong></td>
+          <td class="highlight">{{OFFER_FINAL}}</td>
+        </tr>
+        <tr>
+          <td><strong>TERMS OF PAYMENT</strong></td>
+          <td class="italic-val">{{PAYMENT_TERMS}}</td>
+        </tr>
+        <tr>
+          <td><strong>DURATION OF AMC</strong></td>
+          <td class="italic-val">{{DURATION}}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="body-text">Kindly note that we shall be performing a detailed lift inspection prior to signing AMC contract and submit the same for customer approval.</p>
+
+    <p class="body-text">And if any discrepancies / defects are found during the inspection, such defects/ discrepancies shall be attended prior to signing the AMC.</p>
+
+    <p class="body-text">If such defects /discrepancies remain unattended for any reason whatsoever, then those defects and any subsequent defects due to such shall be customer's liability and will not be covered under the AMC contract.</p>
+
+    <p class="note-box"><em>Please see the coverage of Comprehensive in <strong>Annexure I</strong>.</em></p>
+  </div>
+
+  <div class="page-footer">
+    <img src="{{FOOTER_IMG_URL}}" alt="Footer">
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE 3 – INSPECTION REPORT
+═══════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <img src="{{HEADER_IMG_URL}}" alt="Header">
+  </div>
+
+  <div class="content">
+    <div class="date-line">Date – {{LETTER_DATE}}</div>
+
+    <div class="address-block">
+      <strong>To,</strong><br>
+      <strong>The Secretary/Chairman,</strong><br>
+      <strong>{{CLIENT_NAME}},</strong><br>
+      <strong>{{CLIENT_ADDRESS}}</strong>
+    </div>
+
+    <p class="subject-line">Site Address : Same as above</p>
+    <p class="subject-line">Subject : Inspection Report</p>
+
+    <div class="contact-block">
+      Contact Person: {{CONTACT_PERSON}}<br>
+      Contact Number: {{CONTACT_PHONE}}
+    </div>
+
+    <p class="dear">Dear Sir,</p>
+
+    <p class="body-text">We would like to inform you that during our recent inspection of the lift system at your premises, we have observed that the existing control panel is of an outdated configuration and is non-replaceable in parts.</p>
+
+    <p class="body-text">In particular, the motherboard of the control panel is not repairable. In the event of any failure or malfunction of the motherboard, it will not be possible to carry out component-level repairs. Instead, the entire control system will have to be replaced.</p>
+
+    <p class="body-text">Additionally, the following associated components, which are compatible only with the existing system, will also require complete replacement:</p>
+
+    <ul class="bullet-list">
+      <li>Car Operating Panel (COP) display card</li>
+      <li>Landing Operating Panel (LOP) display card</li>
+      <li>Printed Circuit Boards (PCBs)</li>
+      <li>Complete associated wiring</li>
+    </ul>
+
+    <p class="body-text">As these components are interdependent and not compatible with newer systems individually, partial replacement is not feasible.</p>
+
+    <p class="body-text">We recommend considering a complete upgrade or replacement of the control system to ensure continued safe and reliable operation of the lift. Please feel free to contact us for any further clarification or to discuss the next course of action.</p>
+
+    <div class="sign-block" style="margin-top:18pt;">
+      For <strong>M/s. AVANT ENGINEERING &amp; CONTRACTORS</strong>
+      <strong>RAMAKRISHNAN M.V.</strong>
+      <strong>Authorised Signatory</strong>
+      <strong>Mob: 98333 67567</strong>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <img src="{{FOOTER_IMG_URL}}" alt="Footer">
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE 4 – AMC COVERAGE + PWD MANDATORY ITEMS
+═══════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <img src="{{HEADER_IMG_URL}}" alt="Header">
+  </div>
+
+  <div class="content" style="padding-top:4mm;padding-bottom:3mm;">
+    <div class="date-line" style="margin-bottom:5pt;">Date – {{LETTER_DATE}}</div>
+
+    <p class="section-title" style="margin-bottom:4pt;">1) NON – COMPREHENSIVE AMC COVERAGE:</p>
+
+    <p class="body-text" style="font-size:9.5pt;margin-bottom:4pt;">The Company shall supply the service materials like oil, grease, cotton waste free of cost. The owner of the Lift has to bear the expenses of any kind of damage, repair or replacement of any parts whenever required.</p>
+
+    <p class="sub-heading" style="margin:4pt 0 3pt 0;font-size:10pt;">Our services for maintenance under AMC:</p>
+
+    <ol class="numbered-list" style="font-size:9.5pt;">
+      <li style="margin-bottom:3pt;">The company shall carry out routine monthly/ quarterly inspection service and report will be submitted to the society office. All break down call records will be entered in our Log card which will be displayed in the Lift room area of the Society. This can be inspected for service records by the Society management.</li>
+      <li style="margin-bottom:3pt;">The company shall depute its Technicians on call basis for break down or any complaint to be attended and resolved within normal working hours on Weekdays except Sundays. The response time will be same day or within 24 hours.</li>
+      <li style="margin-bottom:3pt;">The company undertakes to rectify all normal complaints of the lift arising out of daily working of the lift, normal wear and tear, mechanical faults, Electrical &amp; electronic faults. However, the company is not responsible nor liable faults caused to lift in abnormal conditions: Acts of Government, Strikes and Lockouts, Anti-social elements i.e. negligence of Lift users in the Society/owner, theft, natural calamities like fire, Lighting, storm/cyclone, Flood, Inundation, Landslide, Fire &amp; shock resulting in collapse, Acts of God, riots, Damages caused due to building defects like water leakage in Machine room, power cuts, etc. or any other factors beyond control of the company. The terms and conditions are clearly mentioned in the AMC contract.</li>
+    </ol>
+
+    <p style="font-size:9.5pt;font-style:italic;margin:3pt 0 4pt 0;">Note: The above items list is subject to change at Service Provider's discretion.</p>
+
+    <!-- PWD Section -->
+    <p class="pwd-section-title" style="font-size:13pt;margin:6pt 0 5pt 0;">PWD MANDATORY ITEMS</p>
+
+    <p class="pwd-sub" style="margin-bottom:4pt;font-size:10pt;">As per PWD norms the followings are mandatory</p>
+
+    <p class="pwd-item" style="font-size:9.5pt;margin-bottom:4pt;"><strong>1. Automatic Rescue Device (ARD):</strong> <span>If for any reason, the ARD system is not in place at your society, Lift, then it needs to be installed / updated on priority basis, to ensure safe halting of the lift to nearest floor in case of power failures.</span></p>
+
+    <p class="pwd-item" style="font-size:9.5pt;margin-bottom:4pt;"><strong>2. Toe Guard 750 mm:</strong> <span>750 mm standard requirement. If the existing one is less than 750 mm in height then it has to be urgently replaced. This prevents falling down of passengers while getting out of stuck elevators and also prevents toes getting stuck while getting inside the lift.</span></p>
+
+    <p class="pwd-item" style="font-size:9.5pt;margin-bottom:4pt;"><strong>3. Car Top Safety Barricade -</strong> <span>This will prevent falling of the person working / repairing standing on top of the elevator car.</span></p>
+
+    <p class="pwd-item" style="font-size:9.5pt;margin-bottom:4pt;"><strong>4. Pit Switch (Pull-Push Button) -</strong> <span>Up gradation will prevent accidental use of the button unknowingly</span></p>
+
+    <p class="pwd-item" style="font-size:9.5pt;margin-bottom:4pt;"><strong>5. Overload Protection Device–</strong> <span>If the passengers in the lifts are more than its capacity, this device will indicate to maintain the load capacity by voice command or Display Indicator.</span></p>
+
+    <p class="pwd-item" style="font-size:9.5pt;margin-bottom:4pt;"><strong>6. Emergency Alarm –</strong> <span>Emergency Alarm works like a siren in every emergency situation like power cut, etc.</span></p>
+
+    <p class="pwd-item" style="font-size:9.5pt;margin-bottom:4pt;"><strong>7. Safety Grill for vision glass if door is swing door</strong></p>
+
+    <p class="pwd-item" style="font-size:9.5pt;margin-bottom:5pt;"><strong>8. Car Top Stop switch (Pull &amp; push)</strong></p>
+
+    <p style="font-weight:bold;font-size:9.5pt;line-height:1.5;">The above information is for Customer reference and as a Service Provider we hereby declare that the Customer has been informed of the mandatory items</p>
+  </div>
+
+  <div class="page-footer">
+    <img src="{{FOOTER_IMG_URL}}" alt="Footer">
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE 5 – ROUTINE SERVICE CHECKLIST
+═══════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <img src="{{HEADER_IMG_URL}}" alt="Header">
+  </div>
+
+  <div class="content">
+    <div class="date-line">Date – {{LETTER_DATE}}</div>
+
+    <p style="font-weight:bold;font-size:11pt;margin-bottom:10pt;">Routine Service Checklist:</p>
+
+    <!-- Three-column grid: Lubrication | Safety Items | Signal -->
+    <div style="display:grid;grid-template-columns:1fr 1.6fr 1fr;gap:0 10pt;font-size:9.5pt;margin-bottom:10pt;">
+      <!-- COL 1: Lubrication & Oil Servicing -->
+      <div>
+        <p class="check-section-title" style="text-decoration:underline;">Lubrication &amp; Oil Servicing</p>
+        <ol class="check-ol">
+          <li>Over-speed Governor</li>
+          <li>Diversion Pulley</li>
+          <li>Pedestal</li>
+          <li>Car Shoe</li>
+          <li>Counter Shoe</li>
+          <li>Rope Bolt</li>
+          <li>Pit Pulley</li>
+          <li>Rail Oiling</li>
+          <li>Landing Gate</li>
+          <li>Oil level in Gear &amp; Motor</li>
+        </ol>
+      </div>
+
+      <!-- COL 2: Safety Items -->
+      <div>
+        <p class="check-section-title" style="text-decoration:underline;">Safety Items (Important):</p>
+        <ol class="check-ol">
+          <li>Floor Level</li>
+          <li>Landing gate pull push check in running state</li>
+          <li>Condition of Main Rope</li>
+          <li>Car Gate</li>
+          <li>D-Locking</li>
+          <li>Up/Down Final Limit</li>
+          <li>Over-speed governor</li>
+          <li>Overload relay</li>
+          <li>PFR card</li>
+          <li>Clearance between Lock</li>
+          <li>Lever &amp; R-CAM</li>
+          <li>Clearance between SWT, Magnet/S-CAM,</li>
+          <li>Door closer speed</li>
+          <li>ARD</li>
+          <li>Door Sensor for Auto-door</li>
+          <li>OSG functioning (Electrical/Mechanical)</li>
+          <li>Up/Down Terminal</li>
+          <li>Car &amp; Counter weight frame clearance from buffer spring</li>
+          <li>ELCB &amp; Main Switch</li>
+        </ol>
+      </div>
+
+      <!-- COL 3: Signal -->
+      <div>
+        <p class="check-section-title" style="text-decoration:underline;">Signal:</p>
+        <ol class="signal-ol" style="margin-left:14pt;">
+          <li>Alarm (Door Open Bell)</li>
+          <li>Up/Down arrow at every floors &amp; car</li>
+          <li>Position indicator on all floors &amp; car</li>
+          <li>Call registration on all floors &amp; car</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- Other Checks Box -->
+    <div class="other-checks-box">
+      <p class="box-title">Other Checks:</p>
+      <ul>
+        <li>Car top inspection</li>
+        <li>Light in Machine room/ Car top/ Lift Well/ Cabin</li>
+        <li>Fan</li>
+        <li>Lift license</li>
+      </ul>
+    </div>
+
+    <!-- Signature Row – taller boxes, full width -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10pt;margin-top:10pt;">
+      <div style="border:1.5px solid #333;padding:8pt 12pt;min-height:75pt;font-size:10pt;font-weight:bold;">AVANT ENGINEERING &amp; CONTRACTORS</div>
+      <div style="border:1.5px solid #333;padding:8pt 12pt;min-height:75pt;font-size:10pt;font-weight:bold;">OFFER READ, ACCEPTED:</div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <img src="{{FOOTER_IMG_URL}}" alt="Footer">
+  </div>
+</div>
+
+</body>
+</html>

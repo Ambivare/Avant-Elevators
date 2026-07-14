@@ -1,0 +1,54 @@
+name: Deploy Cloudflare Worker
+
+on:
+  push:
+    branches: [main, ui/corporate-redesign]
+    paths:
+      - 'worker/**'
+  workflow_dispatch:
+
+jobs:
+  deploy-worker:
+    runs-on: ubuntu-latest
+    name: Deploy to Cloudflare Workers
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Wrangler
+        run: npm install -g wrangler@3
+
+      # Patch or remove the KV namespace block so wrangler never sees the placeholder.
+      # - If CF_KV_OTP_ID secret is set  → replace placeholder with real ID
+      # - If secret is NOT set           → strip the entire [[kv_namespaces]] block
+      - name: Patch KV namespace ID
+        env:
+          CF_KV_OTP_ID: ${{ secrets.CF_KV_OTP_ID }}
+        run: |
+          if [ -n "$CF_KV_OTP_ID" ]; then
+            sed -i "s/REPLACE_WITH_YOUR_KV_NAMESPACE_ID/$CF_KV_OTP_ID/" worker/wrangler.toml
+            echo "✅ KV namespace ID patched from CF_KV_OTP_ID secret"
+          elif grep -q "REPLACE_WITH_YOUR_KV_NAMESPACE_ID" worker/wrangler.toml; then
+            python3 -c "
+import re
+content = open('worker/wrangler.toml').read()
+content = re.sub(r'\[\[kv_namespaces\]\][^\[]*binding\s*=\s*\"OTP_KV\"[^\[]*id\s*=\s*\"REPLACE_WITH_YOUR_KV_NAMESPACE_ID\"\n?', '', content, flags=re.DOTALL)
+open('worker/wrangler.toml', 'w').write(content)
+"
+            echo "⚠️  CF_KV_OTP_ID not set — KV binding removed so deploy can proceed (OTP emails will not work)"
+          else
+            echo "✅ wrangler.toml KV ID already set"
+          fi
+
+      - name: Deploy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: worker
+          command: deploy

@@ -1,0 +1,147 @@
+<svg width="520" height="520" viewBox="0 0 520 520" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="cubeFaceTop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5BC8FF"/>
+      <stop offset="100%" stop-color="#1A7EC4"/>
+    </linearGradient>
+    <linearGradient id="innerGlow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#001A3A"/>
+      <stop offset="100%" stop-color="#002D5A"/>
+    </linearGradient>
+    <linearGradient id="brainGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3AB8FF"/>
+      <stop offset="100%" stop-color="#1A8BE0"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <linearGradient id="cubeBody" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4DC0F5"/>
+      <stop offset="40%" stop-color="#1A88DD"/>
+      <stop offset="100%" stop-color="#0D5EB0"/>
+    </linearGradient>
+    <linearGradient id="cubeSide" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#2A9AE0"/>
+      <stop offset="100%" stop-color="#1670C0"/>
+    </linearGradient>
+    <linearGradient id="baseGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3AAAE8"/>
+      <stop offset="100%" stop-color="#0D5EB0"/>
+    </linearGradient>
+    <linearGradient id="arrowGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#B8E8FF"/>
+    </linearGradient>
+    <radialGradient id="chamberGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#004B8A" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#001A3A" stop-opacity="1"/>
+    </radialGradient>
+    <linearGradient id="edgeShine" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7AE0FF"/>
+      <stop offset="50%" stop-color="#3AB8F5"/>
+      <stop offset="100%" stop-color="#1A7EC4"/>
+    </linearGradient>
+  </defs>
+
+  <!-- OUTER CUBE BODY -->
+  <rect x="55" y="42" width="410" height="400" rx="52" fill="url(#cubeBody)"/>
+  <rect x="55" y="42" width="410" height="180" rx="52" fill="#5CCDFF" opacity="0.25"/>
+  <rect x="60" y="42" width="400" height="12" rx="8" fill="#8AE8FF" opacity="0.6"/>
+  <rect x="55" y="50" width="12" height="386" rx="6" fill="#7AE0FF" opacity="0.45"/>
+  <rect x="453" y="50" width="12" height="386" rx="6" fill="#1A6CB8" opacity="0.7"/>
+  <rect x="60" y="422" width="400" height="18" rx="8" fill="#0A4A8A" opacity="0.6"/>
+
+  <!-- BASE / PEDESTAL -->
+  <rect x="80" y="430" width="360" height="48" rx="10" fill="url(#baseGrad)"/>
+  <rect x="80" y="430" width="360" height="16" rx="8" fill="#5CCDFF" opacity="0.3"/>
+  <rect x="80" y="462" width="360" height="16" rx="8" fill="#0A3A6A" opacity="0.5"/>
+  <rect x="68" y="426" width="384" height="10" rx="5" fill="#2A90D8" opacity="0.8"/>
+
+  <!-- INNER CHAMBER -->
+  <rect x="95" y="76" width="330" height="328" rx="30" fill="url(#chamberGlow)"/>
+  <rect x="95" y="76" width="330" height="50" rx="28" fill="#000E20" opacity="0.5"/>
+  <rect x="95" y="76" width="330" height="328" rx="30" fill="none" stroke="#00AAFF" stroke-width="3" opacity="0.6"/>
+  <rect x="100" y="81" width="320" height="318" rx="26" fill="none" stroke="#0EDFFF" stroke-width="1.5" opacity="0.35"/>
+
+  <!-- AMBIENT GLOW BEHIND BRAIN -->
+  <ellipse cx="260" cy="208" rx="105" ry="85" fill="#0055AA" opacity="0.7"/>
+  <ellipse cx="260" cy="208" rx="80" ry="60" fill="#007FDD" opacity="0.6"/>
+
+  <!-- BRAIN SHAPE -->
+  <path d="M 260 110 C 210 108, 170 120, 155 148 C 140 170, 138 195, 148 218 C 155 238, 148 258, 160 275 C 172 292, 190 295, 210 290 C 230 285, 250 290, 260 290 L 260 110 Z" fill="url(#brainGrad)" opacity="0.95"/>
+  <path d="M 260 110 C 310 108, 350 120, 365 148 C 380 170, 382 195, 372 218 C 365 238, 372 258, 360 275 C 348 292, 330 295, 310 290 C 290 285, 270 290, 260 290 L 260 110 Z" fill="url(#brainGrad)" opacity="0.95"/>
+
+  <!-- Brain folds - left -->
+  <path d="M 190 148 Q 182 162, 188 178" fill="none" stroke="#1A6CAA" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+  <path d="M 168 175 Q 162 192, 168 210" fill="none" stroke="#1A6CAA" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+  <path d="M 175 228 Q 170 245, 180 260" fill="none" stroke="#1A6CAA" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+  <path d="M 200 268 Q 208 278, 222 274" fill="none" stroke="#1A6CAA" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+  <!-- Brain folds - right -->
+  <path d="M 330 148 Q 338 162, 332 178" fill="none" stroke="#1A6CAA" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+  <path d="M 352 175 Q 358 192, 352 210" fill="none" stroke="#1A6CAA" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+  <path d="M 345 228 Q 350 245, 340 260" fill="none" stroke="#1A6CAA" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+  <path d="M 320 268 Q 312 278, 298 274" fill="none" stroke="#1A6CAA" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+  <!-- Center fold -->
+  <path d="M 260 118 C 256 150, 256 210, 260 285" fill="none" stroke="#1A6CAA" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+  <!-- Brain outline glow -->
+  <path d="M 260 110 C 210 108,170 120,155 148 C 140 170,138 195,148 218 C 155 238,148 258,160 275 C 172 292,190 295,210 290 C 230 285,250 290,260 290 C 270 290,290 285,310 290 C 330 295,348 292,360 275 C 372 258,365 238,372 218 C 382 195,380 170,365 148 C 350 120,310 108,260 110 Z" fill="none" stroke="#55DDFF" stroke-width="2.5" opacity="0.7"/>
+
+  <!-- NEURAL NETWORK NODES & LINES -->
+  <!-- Center node -->
+  <circle cx="260" cy="260" r="9" fill="#FFFFFF" opacity="0.95"/>
+  <circle cx="260" cy="260" r="5" fill="#55DDFF"/>
+  <!-- Left nodes -->
+  <circle cx="185" cy="185" r="9" fill="#FFFFFF" opacity="0.95"/>
+  <circle cx="185" cy="185" r="5" fill="#55DDFF"/>
+  <circle cx="175" cy="235" r="8" fill="#FFFFFF" opacity="0.9"/>
+  <circle cx="175" cy="235" r="4.5" fill="#55DDFF"/>
+  <circle cx="200" cy="155" r="8" fill="#FFFFFF" opacity="0.9"/>
+  <circle cx="200" cy="155" r="4.5" fill="#55DDFF"/>
+  <!-- Right nodes -->
+  <circle cx="335" cy="185" r="9" fill="#FFFFFF" opacity="0.95"/>
+  <circle cx="335" cy="185" r="5" fill="#55DDFF"/>
+  <circle cx="345" cy="235" r="8" fill="#FFFFFF" opacity="0.9"/>
+  <circle cx="345" cy="235" r="4.5" fill="#55DDFF"/>
+  <circle cx="320" cy="155" r="8" fill="#FFFFFF" opacity="0.9"/>
+  <circle cx="320" cy="155" r="4.5" fill="#55DDFF"/>
+  <!-- Top node -->
+  <circle cx="260" cy="135" r="8" fill="#FFFFFF" opacity="0.9"/>
+  <circle cx="260" cy="135" r="4.5" fill="#55DDFF"/>
+  <!-- Connection lines -->
+  <line x1="260" y1="260" x2="185" y2="185" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" opacity="0.9"/>
+  <line x1="260" y1="260" x2="175" y2="235" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" opacity="0.9"/>
+  <line x1="260" y1="260" x2="200" y2="155" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" opacity="0.9"/>
+  <line x1="260" y1="260" x2="335" y2="185" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" opacity="0.9"/>
+  <line x1="260" y1="260" x2="345" y2="235" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" opacity="0.9"/>
+  <line x1="260" y1="260" x2="320" y2="155" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" opacity="0.9"/>
+  <line x1="260" y1="260" x2="260" y2="135" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" opacity="0.9"/>
+
+  <!-- UPLOAD ARROW -->
+  <rect x="246" y="336" width="28" height="34" rx="4" fill="url(#arrowGrad)" opacity="0.95"/>
+  <polygon points="260,300 226,340 294,340" fill="url(#arrowGrad)" opacity="0.95"/>
+  <polygon points="260,306 232,340 288,340" fill="#FFFFFF" opacity="0.3"/>
+  <rect x="249" y="336" width="22" height="30" rx="3" fill="#FFFFFF" opacity="0.3"/>
+
+  <!-- CORNER SCREWS -->
+  <circle cx="88" cy="72" r="7" fill="#2A9AE0" stroke="#7AE0FF" stroke-width="1.5" opacity="0.8"/>
+  <circle cx="432" cy="72" r="7" fill="#2A9AE0" stroke="#7AE0FF" stroke-width="1.5" opacity="0.8"/>
+  <circle cx="88" cy="418" r="7" fill="#1A70B8" stroke="#4AAAE0" stroke-width="1.5" opacity="0.8"/>
+  <circle cx="432" cy="418" r="7" fill="#1A70B8" stroke="#4AAAE0" stroke-width="1.5" opacity="0.8"/>
+  <line x1="85" y1="72" x2="91" y2="72" stroke="#5AC8EE" stroke-width="1.2" opacity="0.9"/>
+  <line x1="88" y1="69" x2="88" y2="75" stroke="#5AC8EE" stroke-width="1.2" opacity="0.9"/>
+  <line x1="429" y1="72" x2="435" y2="72" stroke="#5AC8EE" stroke-width="1.2" opacity="0.9"/>
+  <line x1="432" y1="69" x2="432" y2="75" stroke="#5AC8EE" stroke-width="1.2" opacity="0.9"/>
+  <line x1="85" y1="418" x2="91" y2="418" stroke="#3A8AC8" stroke-width="1.2" opacity="0.9"/>
+  <line x1="88" y1="415" x2="88" y2="421" stroke="#3A8AC8" stroke-width="1.2" opacity="0.9"/>
+  <line x1="429" y1="418" x2="435" y2="418" stroke="#3A8AC8" stroke-width="1.2" opacity="0.9"/>
+  <line x1="432" y1="415" x2="432" y2="421" stroke="#3A8AC8" stroke-width="1.2" opacity="0.9"/>
+
+  <!-- OUTER GLOW RING -->
+  <rect x="55" y="42" width="410" height="400" rx="52" fill="none" stroke="#5AD0FF" stroke-width="3" opacity="0.4"/>
+  <rect x="50" y="38" width="420" height="410" rx="56" fill="none" stroke="#3AB8EE" stroke-width="1.5" opacity="0.2"/>
+</svg>

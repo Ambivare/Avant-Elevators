@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tax Invoice - {{document.number}}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  @page { size: A4; margin: 0; }
+
+  body { font-family: Arial, sans-serif; font-size: 10px; background: #fff; width: 210mm; }
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+  }
+  .footer-img { width: 100%; display: block; }
+
+  /* ── header image row ── */
+  .header-img-row {
+    width: 100%;
+    border: 2px solid #000;
+    border-bottom: none;
+    display: block;
+  }
+  .header-img-row img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  /* ── outer wrapper ── */
+  .inv-wrap {
+    border: 2px solid #000;
+    flex: 1;
+  }
+
+  /* ── TAX INVOICE title ── */
+  .inv-title {
+    text-align: center;
+    font-weight: bold;
+    font-size: 10px;
+    padding: 5px 0 4px;
+    border-bottom: 1px solid #000;
+  }
+
+  /* ── Reg address row ── */
+  .reg-addr {
+    text-align: center;
+    font-weight: bold;
+    font-size: 10px;
+    padding: 4px 6px;
+    border-bottom: 1px solid #000;
+  }
+
+  /* ── Contact/Email/GSTIN row ── */
+  .contact-row {
+    display: flex;
+    border-bottom: 2px solid #000;
+  }
+  .contact-row .cr-mob {
+    flex: 0 0 40%;
+    padding: 3px 6px;
+    font-weight: bold;
+    font-size: 10px;
+    border-right: 1px solid #000;
+  }
+  .contact-row .cr-email {
+    flex: 0 0 35%;
+    padding: 3px 6px;
+    font-weight: bold;
+    font-size: 10px;
+    border-right: 1px solid #000;
+  }
+  .contact-row .cr-gstin {
+    flex: 1;
+    padding: 3px 6px;
+    font-weight: bold;
+    font-size: 10px;
+  }
+
+  /* ── Main two-column body band ── */
+  .body-band {
+    display: flex;
+    border-bottom: 2px solid #000;
+  }
+  .body-left {
+    flex: 0 0 50%;
+    border-right: 2px solid #000;
+  }
+  .body-right {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* left rows */
+  .bl-row {
+    display: flex;
+    align-items: flex-start;
+    min-height: 21px;
+    padding: 2px 5px;
+    font-size: 10px;
+    border-bottom: 1px solid #000;
+  }
+  .bl-row:last-child { border-bottom: none; }
+  .bl-row .lbl { font-weight: bold; white-space: nowrap; margin-right: 4px; }
+
+  /* right: invoice meta (top) + bank (bottom) */
+  .br-meta {
+    border-bottom: 1px solid #000;
+  }
+  .br-row {
+    display: flex;
+    align-items: center;
+    min-height: 21px;
+    border-bottom: 1px solid #000;
+    font-size: 10px;
+  }
+  .br-row:last-child { border-bottom: none; }
+  .br-key {
+    flex: 0 0 44%;
+    padding: 2px 5px;
+    border-right: 1px solid #000;
+  }
+  .br-val {
+    flex: 1;
+    padding: 2px 5px;
+    border-right: 1px solid #000;
+  }
+  .br-bank {
+    flex: 1;
+    padding: 2px 5px;
+    font-weight: bold;
+    font-size: 10px;
+  }
+
+  /* bank details rows on the right side */
+  .bank-rows { flex: 1; }
+  .bank-row {
+    display: flex;
+    align-items: center;
+    min-height: 18px;
+    font-size: 10px;
+    border-bottom: 1px solid #000;
+  }
+  .bank-row:last-child { border-bottom: none; }
+  .bank-meta {
+    flex: 0 0 55%;
+    padding: 2px 5px;
+    border-right: 1px solid #000;
+  }
+  .bank-detail {
+    flex: 1;
+    padding: 2px 5px;
+    font-size: 10px;
+  }
+
+  /* ── Item table ── */
+  table.items {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  table.items th, table.items td {
+    border: 1px solid #000;
+    padding: 3px 4px;
+    font-size: 10px;
+    vertical-align: middle;
+  }
+  table.items th:first-child, table.items td:first-child { border-left: none; }
+  table.items th:last-child,  table.items td:last-child  { border-right: none; }
+  table.items thead th { border-top: 2px solid #000; border-bottom: 2px solid #000; font-weight: bold; text-align: center; }
+
+  col.c-sno  { width: 6%; }
+  col.c-desc { width: 28%; }
+  col.c-hsn  { width: 11%; }
+  col.c-qty  { width: 13%; }
+  col.c-rate { width: 18%; }
+  col.c-tot  { width: 24%; }
+
+  .data-row td { height: 60px; vertical-align: top; padding-top: 5px; border-bottom: 1px solid #000; }
+
+  /* ── Summary rows ── */
+  .summary-wrap {
+    display: flex;
+    justify-content: flex-end;
+    border-bottom: 1px solid #000;
+  }
+  table.sum {
+    width: 50%;
+    border-collapse: collapse;
+  }
+  table.sum td {
+    border: 1px solid #000;
+    padding: 4px 6px;
+    font-size: 10px;
+  }
+  table.sum td:first-child { border-left: none; text-align: left; }
+  table.sum td:last-child  { border-right: none; text-align: right; }
+  table.sum tr:first-child td { border-top: 2px solid #000; }
+  table.sum tr:last-child  td { border-bottom: 2px solid #000; font-weight: bold; }
+
+  /* ── Amount in words ── */
+  .words-row {
+    border-bottom: 2px solid #000;
+    padding: 5px 8px;
+    font-weight: bold;
+    font-size: 11px;
+    text-align: center;
+    min-height: 29px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ── Terms + Signatory ── */
+  .terms-outer {
+    display: flex;
+    border-bottom: 1px solid #000;
+  }
+  .terms-left {
+    flex: 0 0 72%;
+    border-right: 2px solid #000;
+    padding: 4px 8px;
+  }
+  .terms-right {
+    flex: 1;
+    padding: 4px 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 110px;
+  }
+  .terms-left p { font-size: 10px; margin-bottom: 3px; }
+  .t-head { font-size: 11px; font-weight: normal; margin-bottom: 6px !important; }
+  .t-num  { font-weight: bold; font-size: 10px; white-space: nowrap; }
+  .term-item { display: flex; gap: 4px; margin-bottom: 3px; }
+  .sig-top { font-weight: bold; font-size: 11px; text-align: center; }
+  .sig-bot { font-size: 12px; text-align: center; padding-top: 10px; }
+
+  /* ── Two-column signature boxes ── */
+  .sig-hdr { display: flex; border-top: 2px solid #000; }
+  .sig-hl, .sig-hr { flex: 1; background: #f5f5f5; text-align: center; font-weight: bold; font-size: 10px; padding: 5px 6px; }
+  .sig-hl { border-right: 2px solid #000; }
+  .sig-body2 { display: flex; height: 55px; }
+  .sig-bl2, .sig-br2 { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; padding: 4px 10px 6px; }
+  .sig-bl2 { border-right: 2px solid #000; }
+  .sig-line2 { border-top: 1px solid #000; margin-bottom: 3px; }
+  .sig-lbl2 { text-align: center; font-weight: bold; font-size: 10px; }
+
+  /* ── Jurisdiction footer ── */
+  .footer-row {
+    min-height: 37px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    border-top: 1px solid #000;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header-img-row">
+    <img src="https://nitiipath.in/avant/avanttaxinvoiceheader.png" alt="Avant Header">
+  </div>
+
+  <div class="inv-wrap">
+
+    <!-- TAX INVOICE title -->
+    <div class="inv-title">TAX INVOICE</div>
+
+    <!-- Reg Address -->
+    <div class="reg-addr">
+      Reg.Address : {{company.regAddress}}
+    </div>
+
+    <!-- Mob / Email / GSTIN -->
+    <div class="contact-row">
+      <div class="cr-mob">Mob. No. {{company.phone}}</div>
+      <div class="cr-email">E-mail Id : {{company.email}}</div>
+      <div class="cr-gstin">GSTIN : {{company.gst}}</div>
+    </div>
+
+    <!-- Billed-to | Invoice meta + Bank details -->
+    <div class="body-band">
+
+      <!-- LEFT: Receiver details -->
+      <div class="body-left">
+        <div class="bl-row" style="border-bottom:2px solid #000; font-weight:bold;">Details of Receiver (Billed to)</div>
+        <div class="bl-row"><span class="lbl">Secretary / Chairman,</span></div>
+        <div class="bl-row" style="font-weight:bold;">{{client.societyName}}</div>
+        <div class="bl-row"><span class="lbl">Name:</span> {{client.name}}</div>
+        <div class="bl-row" style="min-height:36px;"><span class="lbl">Address:</span> {{client.address}}</div>
+        <div class="bl-row"><span class="lbl">State:</span> {{client.state}}</div>
+        <div class="bl-row"><span class="lbl">GST Code:</span> {{client.gstCode}}</div>
+        <div class="bl-row"><span class="lbl">GSTIN :</span> {{client.gst}}</div>
+      </div>
+
+      <!-- RIGHT: Invoice meta rows + Bank details -->
+      <div class="body-right">
+        <!-- Invoice meta -->
+        <div class="br-row">
+          <span class="br-key">INVOICE No.</span>
+          <span class="br-val" style="border-right:none; flex:1; padding:2px 5px;">{{document.number}}</span>
+        </div>
+        <div class="br-row">
+          <span class="br-key">DATE:</span>
+          <span class="br-val" style="border-right:none;">{{document.date}}</span>
+        </div>
+        <div class="br-row">
+          <span class="br-key">CONTRACT NO:</span>
+          <span class="br-val" style="border-right:none;">{{document.contractNo}}</span>
+        </div>
+        <div class="br-row">
+          <span class="br-key">Contact Person:</span>
+          <span class="br-val" style="border-right:none;">{{client.contactPerson}}</span>
+        </div>
+        <div class="br-row">
+          <span class="br-key">Contact No:</span>
+          <span class="br-val" style="border-right:none;">{{client.phone}}</span>
+        </div>
+        <div class="br-row">
+          <span class="br-key">Contact Person 2:</span>
+          <span class="br-val" style="border-right:none;">{{client.contactPerson2}}</span>
+        </div>
+        <div class="br-row" style="border-bottom:2px solid #000;">
+          <span class="br-key">Contact No 2:</span>
+          <span class="br-val" style="border-right:none;">{{client.phone2}}</span>
+        </div>
+        <!-- Bank details -->
+        <div class="bank-rows">
+          <div class="bank-row" style="min-height:21px; font-weight:bold;">
+            <span style="padding:2px 5px;">OUR BANK DETAILS :</span>
+          </div>
+          <div class="bank-row" style="min-height:18px;">
+            <span style="padding:2px 5px;">BANK : {{company.bankName}}</span>
+          </div>
+          <div class="bank-row" style="min-height:18px;">
+            <span style="padding:2px 5px;">BRANCH : {{company.bankBranch}}</span>
+          </div>
+          <div class="bank-row" style="min-height:20px;">
+            <span style="padding:2px 5px;">Account No : {{company.accountNo}}</span>
+          </div>
+          <div class="bank-row" style="min-height:18px;">
+            <span style="padding:2px 5px;">IFSC Code : {{company.ifsc}}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ITEM TABLE -->
+    <table class="items">
+      <colgroup>
+        <col class="c-sno">
+        <col class="c-desc">
+        <col class="c-hsn">
+        <col class="c-qty">
+        <col class="c-rate">
+        <col class="c-tot">
+      </colgroup>
+      <thead>
+        <tr>
+          <th>S No</th>
+          <th>Description of goods/ services</th>
+          <th>HSN/ SAC</th>
+          <th>Quantity In Set</th>
+          <th>Rate</th>
+          <th>TOTAL</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{items}}
+      </tbody>
+    </table>
+
+    <!-- SUMMARY -->
+    <div class="summary-wrap">
+      <table class="sum">
+        <tr>
+          <td>Gross Value</td>
+          <td>{{subtotal}}</td>
+        </tr>
+        <tr>
+          <td>CGST @ {{gstHalf}}%</td>
+          <td>{{cgst}}</td>
+        </tr>
+        <tr>
+          <td>SGST @ {{gstHalf}}%</td>
+          <td>{{sgst}}</td>
+        </tr>
+        <tr>
+          <td><strong>Total Invoice Value</strong></td>
+          <td><strong>{{total}}</strong></td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- AMOUNT IN WORDS -->
+    <div class="words-row">Total Amount : {{amountInWords}}</div>
+
+    <!-- TERMS + SIGNATORY -->
+    <div class="terms-outer">
+      <div class="terms-left" style="flex:1;border-right:none;">
+        <p class="t-head">Term &amp; Conditions :</p>
+        <div class="term-item"><span class="t-num">1)</span><span>Payment Terms : Payment 100% Advance</span></div>
+        <div class="term-item"><span class="t-num">2)</span><span>Cheque / Bank Transfer should be in the name of<br>
+          <strong>{{company.name}}</strong><br>
+          Bank Account details mentioned in the Bill.</span>
+        </div>
+        <div class="term-item"><span class="t-num">3)</span><span>If Payment delayed more than 15days, interest will be charged @24%P.A.</span></div>
+        <div class="term-item"><span class="t-num">4)</span><span>Once Material sold will not be returned back.</span></div>
+      </div>
+    </div>
+    <!-- Two-column signature boxes: Avant left, client right -->
+    <div class="sig-hdr">
+      <div class="sig-hl">ACCEPTANCE</div>
+      <div class="sig-hr">For {{company.name}}</div>
+    </div>
+    <div class="sig-body2">
+      <div class="sig-bl2">
+        <div class="sig-line2"></div>
+        <div class="sig-lbl2">Authorised Signatory with Stamp</div>
+      </div>
+      <div class="sig-br2">
+        <div class="sig-line2"></div>
+        <div class="sig-lbl2">Authorised Signatory</div>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footer-row">
+      All Disputes Subject to the Jurisdiction Navi Mumbai
+    </div>
+
+  </div><!-- /inv-wrap -->
+
+  <img src="https://impdocuments-110114701220-eu-north-1-an.s3.eu-north-1.amazonaws.com/Footer_AEC.png" class="footer-img" alt="Avant Footer">
+
+</div><!-- /page -->
+</body>
+</html>

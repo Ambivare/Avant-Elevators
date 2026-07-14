@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Avant Elevators – AMC Renewal</title>
+<!--
+  AVANT AMC RENEWAL TEMPLATE
+  ════════════════════════════════════════════════════════════
+  Paste this entire file's HTML into:
+    Configurations → AMC Renewal Format
+
+  PLACEHOLDERS replaced automatically when generating the Renewal PDF
+  ──────────────────────────────────────────────────────────
+  Cover Letter (Page 1):
+  {{LETTER_DATE}}           Date of letter (DD-MM-YYYY)
+  {{CLIENT_NAME}}           Society / client name
+  {{CLIENT_ADDRESS}}        Full address (line-breaks merged with ", ")
+  {{CONTACT_PERSON}}        Primary contact person (Kind Attn)
+  {{CONTRACT_NO}}           Contract reference number
+  {{RENEWAL_START}}         New start date  (e.g. 01-07-2026)
+  {{RENEWAL_END}}           New end date    (e.g. 30-06-2027)
+  {{NEW_AMOUNT}}            New AMC amount  (e.g. ₹22,000/-)
+  {{AUTHORIZED_SIGNATORY}}  Authorized signatory name
+
+  Contract Body (Pages 2–3):
+  {{CONTACT_PHONE}}         Contact phone number
+  {{LIFT_MAKE}}             Lift brand / make
+  {{LIFT_HEIGHT}}           Floors / height      (e.g. G+4)
+  {{NO_OF_STOPS}}           Number of stops      (e.g. 05)
+  {{LIFT_LOAD}}             Load / capacity      (e.g. 8 PASSENGER)
+  {{LIFT_DOOR_TYPE}}        Type of door         (e.g. AUTO T.O)
+  {{LIFT_LOCK_TYPE}}        Type of lock         (e.g. Electro mechanic)
+  {{NUM_LIFTS}}             Number of lifts
+  {{CONTRACT_TYPE}}         Comprehensive / Non-Comprehensive
+  {{RATE_PER_LIFT}}         Rate per lift per annum in Rs.
+  {{COMMENCEMENT_DATE}}     Start date
+  {{BILLING_CYCLE}}         e.g. Yearly
+  {{TOTAL_AMOUNT}}          Total contract amount
+  {{PAYMENT_TERMS}}         e.g. 100% advance
+
+  DISCOUNT ROW — wrap the <tr> with these markers so it is
+  automatically hidden when discount is disabled:
+    <!-- DISCOUNT_ROW_START -->
+      <tr>...</tr>
+    <!-- DISCOUNT_ROW_END -->
+  ════════════════════════════════════════════════════════════
+-->
+<style>
+  @page { size: A4; margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: Arial, sans-serif;
+    font-size: 11pt;
+    color: #1a1a1a;
+    background: #e0e0e0;
+  }
+
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    height: 297mm;
+    background: #fff;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    page-break-after: always;
+    position: relative;
+  }
+  .page:last-child { page-break-after: auto; }
+
+  .page-header { width: 100%; flex-shrink: 0; }
+  .page-header img { width: 100%; display: block; }
+
+  .page-footer { width: 100%; flex-shrink: 0; margin-top: auto; }
+  .page-footer img { width: 100%; display: block; }
+
+  .content {
+    flex: 1;
+    padding: 5mm 14mm 3mm 14mm;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-size: 10.5pt;
+  }
+
+  .content-tc {
+    flex: 1;
+    padding: 5mm 14mm 3mm 14mm;
+    display: flex;
+    flex-direction: column;
+    font-size: 10pt;
+  }
+
+  p { margin-bottom: 5pt; line-height: 1.45; }
+  strong { font-weight: bold; }
+
+  .date-line { text-align: right; font-size: 10.5pt; margin-bottom: 7pt; }
+  .address-block { margin-bottom: 6pt; line-height: 1.55; font-size: 10.5pt; }
+  .attn-line  { font-weight: bold; font-size: 10.5pt; margin-bottom: 3pt; }
+  .sub-line   { font-weight: bold; font-size: 10.5pt; margin-bottom: 3pt; }
+  .ref-line   { font-size: 10.5pt; margin-bottom: 7pt; }
+  .dear       { margin-bottom: 7pt; font-size: 10.5pt; }
+  .body-text  { font-size: 10pt; line-height: 1.45; margin-bottom: 5pt; }
+  .sign-block { margin-top: 12pt; font-size: 10.5pt; line-height: 1.7; }
+
+  /* ── Page 2 – Agreement ── */
+  .contract-title {
+    text-align: center;
+    font-size: 12pt;
+    font-weight: bold;
+    text-decoration: underline;
+    letter-spacing: 0.4pt;
+    margin-bottom: 6pt;
+  }
+  .agreement-intro { font-size: 9.5pt; line-height: 1.4; margin-bottom: 6pt; }
+  .section-heading {
+    text-align: center;
+    font-size: 10.5pt;
+    font-weight: bold;
+    text-decoration: underline;
+    margin: 5pt 0 4pt 0;
+  }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; margin-bottom: 5pt; font-size: 9.5pt; }
+  th, td { border: 1px solid #333; padding: 3pt 6pt; vertical-align: middle; }
+  th { background: #f0f0f0; font-weight: bold; text-align: center; font-size: 9pt; }
+  td { text-align: center; }
+  td.left { text-align: left; }
+  td.bold-left { font-weight: bold; text-align: left; white-space: nowrap; }
+
+  /* Complaint box */
+  .complaint-box {
+    border: 1px solid #555;
+    padding: 5pt 9pt;
+    font-size: 9.5pt;
+    margin-bottom: 6pt;
+    line-height: 1.5;
+  }
+
+  /* Signing row */
+  .sign-row {
+    display: flex;
+    justify-content: space-between;
+    margin-top: auto;
+    padding-top: 6pt;
+    gap: 14pt;
+  }
+  .sign-col {
+    flex: 1;
+    border-top: 1.5px solid #333;
+    padding-top: 5pt;
+    font-size: 10pt;
+    font-weight: bold;
+  }
+
+  /* ── Page 3 – T&C ── */
+  .tc-heading { font-size: 11pt; font-weight: bold; text-decoration: underline; margin: 0 0 5pt 0; }
+  .tc-sub { font-weight: bold; font-size: 10pt; margin: 5pt 0 3pt 0; }
+  .tc-or  { font-weight: bold; font-size: 10pt; margin: 3pt 0; }
+  .tc-p   { font-size: 9pt; line-height: 1.4; margin-bottom: 3pt; }
+  .tc-ol  { margin-left: 15pt; font-size: 9pt; }
+  .tc-ol li { margin-bottom: 2.5pt; line-height: 1.35; }
+
+  @media print {
+    body { background: #fff; }
+    .page { margin: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE 1 – RENEWAL COVER LETTER
+═══════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <img src="https://impdocuments-110114701220-eu-north-1-an.s3.eu-north-1.amazonaws.com/users/7mR5z6v7OFhpDk4rY2fMdMTbXZ83/folders/zSeDeG6XgNIcjoEoakFP/header.jpg" alt="Header">
+  </div>
+
+  <div class="content">
+    <div class="date-line">Date – {{LETTER_DATE}}</div>
+
+    <div class="address-block">
+      <strong>TO,</strong><br>
+      <strong>THE SECRETARY/CHAIRMAN</strong><br>
+      <strong>M/S: {{CLIENT_NAME}},</strong><br>
+      <strong>{{CLIENT_ADDRESS}}</strong>
+    </div>
+
+    <p class="attn-line">Kind Attn. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;&nbsp; {{CONTACT_PERSON}}</p>
+    <p class="sub-line">Sub: Renewal of {{CONTRACT_TYPE}} AMC of your Lift ({{RENEWAL_START}} to {{RENEWAL_END}})</p>
+    <p class="ref-line">Ref: Contract No {{CONTRACT_NO}}</p>
+
+    <p class="dear">Dear Sir,</p>
+
+    <p class="body-text">We would like to express our sincere thanks for selecting us as your service provider of your Lift in your Society.</p>
+
+    <p class="body-text">We request you release the payment of {{NEW_AMOUNT}} for the AMC at the earliest. The Contract is starting on {{RENEWAL_START}} with the conditions mentioned in the agreement.</p>
+
+    <p class="body-text">The Contract period is from {{RENEWAL_START}} to {{RENEWAL_END}}. Attached herewith the renewal agreement copy in duplicate. Request you to return one copy duly signed and seal for our record.</p>
+
+    <p class="body-text"><strong>Mandatory (As per PWD Rules):</strong> Lift License is to be framed and displayed inside the Lift Cabin.</p>
+
+    <div class="sign-block">
+      Thanking you<br>
+      Yours faithfully<br>
+      <strong>For AVANT ELEVATORS</strong>
+      <br><br><br>
+      <strong>{{AUTHORIZED_SIGNATORY}}</strong><br>
+      <strong>Mob: 98333 67567</strong>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <img src="https://impdocuments-110114701220-eu-north-1-an.s3.eu-north-1.amazonaws.com/Footer_AEC.png" alt="Footer">
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE 2 – AMC RENEWAL CONTRACT
+═══════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <img src="https://impdocuments-110114701220-eu-north-1-an.s3.eu-north-1.amazonaws.com/users/7mR5z6v7OFhpDk4rY2fMdMTbXZ83/folders/zSeDeG6XgNIcjoEoakFP/header.jpg" alt="Header">
+  </div>
+
+  <div class="content">
+    <p class="contract-title">ANNUAL MAINTENANCE &amp; SERVICE CONTRACT</p>
+
+    <p class="agreement-intro">This agreement entered in to by and between "Avant Elevators, Under The License of Avant Engineering And Contractors having address at No-08, Ground floor, Shree Shanti Nikethan CHS, Plot No:12 A, Sector-08, Kharghar, Navi Mumbai 410210, (here after referred to as the "Service Provider") AND The Society / Owner, Name and address as given below herein after referred to as the "Owner" for the maintenance and servicing of the Society / Owner's Elevators(s) by the Service Provider, as per the terms and conditions mentioned hereunder.</p>
+
+    <!-- SITE DETAILS -->
+    <p class="section-heading">SITE DETAILS</p>
+    <table style="margin-bottom:5pt;">
+      <tbody>
+        <tr>
+          <td class="bold-left" style="width:42%;">Contract No.</td>
+          <td class="left">{{CONTRACT_NO}}</td>
+        </tr>
+        <tr>
+          <td class="bold-left">Name of Bldg. / Owner / Company</td>
+          <td class="left">{{CLIENT_NAME}}</td>
+        </tr>
+        <tr>
+          <td class="bold-left">Address of Bldg.</td>
+          <td class="left">{{CLIENT_ADDRESS}}</td>
+        </tr>
+        <tr>
+          <td class="bold-left">Contact Person (1) &nbsp;&nbsp; Phone No.</td>
+          <td class="left">{{CONTACT_PERSON}} &nbsp;&nbsp; {{CONTACT_PHONE}}</td>
+        </tr>
+        <tr>
+          <td class="bold-left">Designation</td>
+          <td class="left">General Secretary</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- LIFT DETAILS -->
+    <p class="section-heading">Details of Lift (S)</p>
+    <table style="margin-bottom:5pt;">
+      <thead>
+        <tr>
+          <th>Brand Name</th>
+          <th>Height</th>
+          <th>No of Stops</th>
+          <th>Load Capacity</th>
+          <th>Type of Door</th>
+          <th>Type of Lock</th>
+          <th>No Of Lift(S)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>{{LIFT_MAKE}}</td>
+          <td>{{LIFT_HEIGHT}}</td>
+          <td>{{NO_OF_STOPS}}</td>
+          <td>{{LIFT_LOAD}}</td>
+          <td>{{LIFT_DOOR_TYPE}}</td>
+          <td>{{LIFT_LOCK_TYPE}}</td>
+          <td>{{NUM_LIFTS}}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- AM & SC DETAILS -->
+    <p class="section-heading">Details of AM &amp; SC</p>
+    <table style="margin-bottom:5pt;">
+      <thead>
+        <tr>
+          <th>Type of Contract</th>
+          <th>Rate per Lift / Annum (Rs.)</th>
+          <th>Commencement</th>
+          <th>Billing Cycle</th>
+          <th>Total Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>{{CONTRACT_TYPE}}</td>
+          <td>{{RATE_PER_LIFT}}</td>
+          <td>{{COMMENCEMENT_DATE}}</td>
+          <td>{{BILLING_CYCLE}}</td>
+          <td>{{TOTAL_AMOUNT}}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- DISCOUNT_ROW_START -->
+    <table style="margin-bottom:5pt;">
+      <tbody>
+        <tr>
+          <td class="bold-left" style="width:50%;">Discount</td>
+          <td class="left">{{OFFER_DISCOUNT}}</td>
+        </tr>
+      </tbody>
+    </table>
+    <!-- DISCOUNT_ROW_END -->
+
+    <p class="body-text" style="font-size:9.5pt;"><strong>Payment Terms: {{PAYMENT_TERMS}}</strong></p>
+
+    <p class="tc-p">The contract shall remain in force unless cancelled in writing by either party, thirty (30) days prior to the desired date of termination. All payments shall be paid in advance and non-refundable. AM &amp; SC charges will be applicable on yearly basis and any revision of charges will be intimated in writing. Customer shall pay the AM &amp; SC charges prevailed at the time on yearly basis upon submission of our Invoice before commencement of next year. <strong>Break-up of AMC Charges:</strong> The AMC amount is apportioned as follows: 30% towards Routine Service Visit Charges for scheduled periodic maintenance. 70% towards Service Assurance Charges, covering technical support, breakdown and emergency services, skilled manpower, and continuous service readiness throughout the contract period.</p>
+
+    <!-- Complaint Registration -->
+    <div class="complaint-box">
+      <strong>Complaint Registration Number*</strong> &nbsp;&nbsp; Telephone Number: <strong>9833367568</strong><br>
+      <span style="font-size:9pt;">*Normal Working Hours (09:00 to 18:00, Monday to Saturday, excluding public/local holidays)</span><br>
+      <span style="font-size:9pt;">Complaint will be attended to calls registered to this number only, with proper identification of the caller (Name, Designation, Flat No., Contact Number, Building Name).</span><br>
+      <strong>In Emergency: 9833367568</strong>
+    </div>
+
+    <!-- Signing area -->
+    <div class="sign-row">
+      <div class="sign-col">
+        For Avant Elevators<br><br><br>
+        Director / Authorized Signatory
+      </div>
+      <div class="sign-col" style="text-align:right;">
+        Accepted<br><br><br>
+        Owner / Authorized Signatory
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <img src="https://impdocuments-110114701220-eu-north-1-an.s3.eu-north-1.amazonaws.com/Footer_AEC.png" alt="Footer">
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE 3 – TERMS & CONDITIONS
+═══════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <img src="https://impdocuments-110114701220-eu-north-1-an.s3.eu-north-1.amazonaws.com/users/7mR5z6v7OFhpDk4rY2fMdMTbXZ83/folders/zSeDeG6XgNIcjoEoakFP/header.jpg" alt="Header">
+  </div>
+
+  <div class="content-tc">
+    <p class="tc-heading">TERMS &amp; CONDITIONS</p>
+
+    <p class="tc-sub">Non Comprehensive Maintenance: –</p>
+    <p class="tc-p">The Company shall supply the service materials like oil, grease, cotton waste free of cost. The owner of the Lift has to bear the expenses of any kind of damage, repair or replacement of any parts whenever required.</p>
+
+    <p class="tc-or">OR</p>
+
+    <p class="tc-sub">Comprehensive Maintenance: –</p>
+    <p class="tc-p">The Company as its option, replace or repair any parts which in its opinion are defective: Over load relay, timer card, SSFR Card, PLA Relays, OEN Relay up/down and UD contactors, transformer, main contactors, rectifier card, relays, phase preventive relay, break coil, break liner, returning cam coil, car-shoe liners, counter weight shoe liners, door bearing, door lock contact, call buttons, indicators, floor switches, final limit switches, terminal switches, fan switch, car gate switch, car top limit switch. Replaced parts become the property of company.</p>
+
+    <p class="tc-p">For any type of contract, the Company will not take responsibility for: Gear oil, Mother Board, Motor, Gearbox, Pneumatic winch, Ropes, main pulley, diverter pulley, Gates/doors, door frames, gate bottom tracks, door closers, car and counter frame, counter weights, rails, Travelling cable, Shaft wiring, V3F unit(s), Door drives, door sensor, inverters, ARD unit, Lift Cabin, Flooring, Emergency Alarm, Emergency light, Door open bell, Cabin fan, cabin light, Door header, mirrors and decoration work, and any other part not mentioned in the AMC coverage above. The above repairs will be carried out when required and will be charged extra.</p>
+
+    <p class="tc-sub">Other Terms and Conditions</p>
+    <ol class="tc-ol">
+      <li>The Company shall provide maintenance services as per this Agreement using reasonable care to keep the elevator in proper working condition.</li>
+      <li>Preventive maintenance shall be carried out during Normal Working Hours (09:00 AM to 06:00 PM, Monday to Saturday, excluding public/local holidays). Only four (4) preventive maintenance visits shall be carried out during the contract period unless otherwise agreed.</li>
+      <li>During each preventive maintenance visit, the Company shall inspect, adjust, clean and lubricate the lift components as required.</li>
+      <li>Any service or attendance required outside Normal Working Hours shall be chargeable unless otherwise agreed in writing.</li>
+      <li>Upon receipt of a breakdown complaint, the Company shall attend the site on a best-effort basis during Normal Working Hours.</li>
+      <li>The Company shall rectify faults arising from normal wear and tear, mechanical, electrical and electronic failures covered under the AMC.</li>
+      <li>The Company shall not be responsible for faults or damages arising due to misuse, overloading, negligence, vandalism, water leakage, voltage fluctuation, power failure, fire, flood, earthquake, riots, acts of God or any cause beyond the Company's control.</li>
+      <li>Replacement of major components, modernization, statutory upgrades, civil works, batteries, ropes, machines, controllers, doors, cabins or any item not specifically covered under the AMC shall be charged separately after approval.</li>
+      <li>All GST, Government taxes and statutory fees shall be payable extra as applicable.</li>
+      <li>PWD inspection fees and Government charges shall be borne by the Customer.</li>
+      <li>Payment shall be made strictly as per the agreed payment terms. Delayed payments shall attract interest @18% per annum until realization.</li>
+      <li>In case of non-payment, the Company may suspend or terminate maintenance services without any liability.</li>
+      <li>In the event of termination, charges shall be calculated on a pro-rata basis. Preventive maintenance visits already conducted shall be charged at ₹500/- per visit; the balance shall be refunded after adjusting all dues.</li>
+      <li>The Customer shall provide uninterrupted electrical power supply, proper lighting, a clean and dry machine room and unrestricted access to the lift and machine room.</li>
+      <li>The Customer shall ensure the lift is not overloaded, misused or tampered with and is operated only for its intended purpose.</li>
+      <li>The Customer shall nominate security personnel for emergency passenger rescue training. Rescue of trapped passengers before the Company's technician reaches the site is the Customer's responsibility.</li>
+      <li>The Company shall not provide standby operators or resident technicians unless separately contracted.</li>
+      <li>Any repair, modification or adjustment carried out by any person other than the Company without prior written approval shall void the Company's responsibility for any resulting defect or damage.</li>
+      <li>Any password, software, parameters or controller configuration developed by Avant shall remain the sole intellectual property of the Company.</li>
+      <li>The Company's total liability shall be limited to direct losses due to its proven negligence and shall not exceed the annual AMC charges paid by the Customer.</li>
+      <li>The Company shall not be liable for any indirect, consequential or incidental loss, including loss of business, profits, goodwill, inconvenience or third-party claims.</li>
+      <li>The Customer shall indemnify the Company, its Directors, Employees and Representatives against all claims, losses, liabilities or expenses arising from misuse, negligence, unauthorized alterations or non-compliance with statutory requirements.</li>
+      <li>This Agreement constitutes the entire understanding between the parties. Either party may terminate by giving thirty (30) days' written notice. All outstanding dues for services rendered shall be payable on a pro-rata basis up to the effective date of termination.</li>
+      <li>Any dispute arising out of or relating to this Agreement shall be referred to a Sole Arbitrator appointed mutually by the parties under the Arbitration and Conciliation Act, 1996. The seat and venue of arbitration shall be Navi Mumbai, Maharashtra.</li>
+    </ol>
+
+    <div class="sign-row" style="margin-top:10pt;">
+      <div class="sign-col">
+        For Avant Elevators<br><br><br>
+        Director / Authorized Signatory
+      </div>
+      <div class="sign-col" style="text-align:right;">
+        Accepted<br><br><br>
+        Owner / Authorized Signatory
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <img src="https://impdocuments-110114701220-eu-north-1-an.s3.eu-north-1.amazonaws.com/Footer_AEC.png" alt="Footer">
+  </div>
+</div>
+
+</body>
+</html>

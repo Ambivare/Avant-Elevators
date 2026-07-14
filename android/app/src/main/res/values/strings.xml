@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Avant Elevators</string>
+    <string name="title_activity_main">Avant Elevators</string>
+    <string name="package_name">com.avant.elevators</string>
+    <string name="custom_url_scheme">com.avant.elevators</string>
+</resources>

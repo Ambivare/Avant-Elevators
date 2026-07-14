@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proforma Invoice - {{document.number}}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  @page { size: A4; margin: 0; }
+
+  body { font-family: Arial, sans-serif; font-size: 12px; background: #fff; width: 210mm; }
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+  }
+  .header-img { width: 100%; display: block; height: auto; }
+  .footer-img  { width: 100%; display: block; }
+
+  /* outer border wraps all invoice content; flex:1 fills remaining page height */
+  .inv-wrap { border: 2px solid #000; flex: 1; }
+
+  .inv-title { font-size: 20px; font-weight: bold; text-align: center; padding: 7px 0 6px; border-bottom: 2px solid #000; }
+
+  /* FROM band */
+  .from-band { display: flex; border-bottom: 2px solid #000; }
+  .from-left  { flex: 0 0 54%; border-right: 2px solid #000; }
+  .from-right { flex: 1; }
+  .fl-row { display: flex; align-items: center; min-height: 25px; padding: 2px 6px; border-bottom: 1px solid #000; }
+  .fl-row:last-child { border-bottom: none; }
+  .fl-bold { font-weight: bold; }
+  .fr-row { display: flex; align-items: center; min-height: 25px; border-bottom: 1px solid #000; }
+  .fr-row:last-child { border-bottom: none; }
+  .fr-key { font-weight: bold; flex: 0 0 54%; padding: 2px 6px; border-right: 1px solid #000; }
+  .fr-val { flex: 1; padding: 2px 6px; }
+
+  /* TO band */
+  .to-band { display: flex; border-bottom: 2px solid #000; }
+  .to-left  { flex: 0 0 54%; border-right: 2px solid #000; }
+  .to-right { flex: 1; }
+  .tl-row { display: flex; align-items: flex-start; min-height: 25px; padding: 2px 6px; border-bottom: 1px solid #000; }
+  .tl-row:last-child { border-bottom: none; }
+  .tl-sep  { border-bottom: 2px solid #000 !important; }
+  .tl-bold { font-weight: bold; }
+  .tr-row { display: flex; align-items: center; min-height: 25px; padding: 2px 6px; border-bottom: 1px solid #000; }
+  .tr-row:last-child { border-bottom: none; }
+  .tr-bold { font-weight: bold; }
+
+  /* Item table */
+  table.items { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  table.items th, table.items td { border: 1px solid #000; padding: 3px 5px; font-size: 12px; vertical-align: middle; }
+  table.items th:first-child, table.items td:first-child { border-left: none; }
+  table.items th:last-child,  table.items td:last-child  { border-right: none; }
+  table.items thead tr:first-child th { border-top: 2px solid #000; }
+  col.c-slno { width: 7%; }
+  col.c-part { width: 45%; }
+  col.c-qty  { width: 16%; }
+  col.c-rate { width: 13%; }
+  col.c-amt  { width: 19%; }
+  table.items th { font-weight: bold; text-align: center; }
+
+  /* Summary */
+  .summary-wrap { display: flex; justify-content: flex-end; border-top: 2px solid #000; border-bottom: 2px solid #000; }
+  table.sum { width: 47%; border-collapse: collapse; }
+  table.sum td { border: 1px solid #000; padding: 4px 6px; font-size: 13px; font-weight: bold; }
+  table.sum td:first-child { border-left: none; text-align: right; }
+  table.sum td:last-child  { border-right: none; text-align: left; width: 32%; }
+  table.sum tr:first-child td { border-top: none; }
+  table.sum tr:last-child  td { border-bottom: none; }
+
+  /* Words row */
+  .words-row { border-bottom: 2px solid #000; padding: 5px 8px; font-weight: bold; min-height: 27px; display: flex; align-items: center; justify-content: center; }
+
+  /* Terms */
+  .terms-band { display: flex; }
+  .terms-left  { flex: 0 0 72%; border-right: 2px solid #000; padding: 5px 8px; }
+  .terms-right { flex: 1; padding: 5px 8px; display: flex; flex-direction: column; justify-content: space-between; }
+  .terms-left p { font-size: 12px; margin-bottom: 5px; }
+  .terms-left p.t-head { font-weight: normal; }
+  .terms-left p.t-item { font-weight: bold; }
+  .sig-top { font-weight: bold; text-align: center; font-size: 12px; }
+  .sig-bot { font-weight: bold; text-align: center; font-size: 12px; padding-top: 28px; }
+  .sig-hdr { display: flex; border-top: 2px solid #000; }
+  .sig-hl, .sig-hr { flex: 1; background: #f5f5f5; text-align: center; font-weight: bold; font-size: 12px; padding: 5px 6px; }
+  .sig-hl { border-right: 2px solid #000; }
+  .sig-body2 { display: flex; height: 55px; }
+  .sig-bl2, .sig-br2 { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; padding: 4px 10px 6px; }
+  .sig-bl2 { border-right: 2px solid #000; }
+  .sig-line2 { border-top: 1px solid #000; margin-bottom: 3px; }
+  .sig-lbl2 { text-align: center; font-weight: bold; font-size: 11px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <img src="https://nitiipath.in/avant/header.jpg" class="header-img" alt="Avant Elevators Header">
+
+  <div class="inv-wrap">
+
+    <div class="inv-title">PROFORMA INVOICE</div>
+
+    <!-- FROM | Invoice fields -->
+    <div class="from-band">
+      <div class="from-left">
+        <div class="fl-row"><span class="fl-bold">FROM:</span></div>
+        <div class="fl-row fl-bold">{{company.name}}</div>
+        <div class="fl-row" style="min-height:60px; align-items:flex-start; padding-top:4px;">{{company.address}}</div>
+      </div>
+      <div class="from-right">
+        <div class="fr-row"><span class="fr-key">Invoice No:</span><span class="fr-val">{{document.number}}</span></div>
+        <div class="fr-row"><span class="fr-key">Date:</span><span class="fr-val">{{document.date}}</span></div>
+        <div class="fr-row"><span class="fr-key">Contract No :</span><span class="fr-val">{{document.contractNo}}</span></div>
+        <div class="fr-row"><span class="fr-key">Ref No:</span><span class="fr-val">{{document.refNo}}</span></div>
+        <div class="fr-row"><span class="fr-key">Ref Date:</span><span class="fr-val">{{document.refDate}}</span></div>
+      </div>
+    </div>
+
+    <!-- TO | Contact + Site -->
+    <div class="to-band">
+      <div class="to-left">
+        <div class="tl-row"><span class="tl-bold">TO:</span></div>
+        <div class="tl-row" style="min-height:18px;"><span class="tl-bold" style="font-size:10px;color:#555;">Secretary / Chairman,</span></div>
+        <div class="tl-row" style="min-height:25px; font-weight:bold;">{{client.societyName}}</div>
+        <div class="tl-row" style="min-height:40px;">{{client.address}}</div>
+        <div class="tl-row"><span class="tl-bold">GSTIN:</span>&nbsp;{{client.gst}}</div>
+        <div class="tl-row tl-sep" style="min-height:10px;"></div>
+        <div class="tl-row"><span class="tl-bold">Site Address :</span></div>
+        <div class="tl-row" style="min-height:25px;">{{client.siteAddress}}</div>
+      </div>
+      <div class="to-right">
+        <div class="tr-row" style="min-height:30px;"><span class="tr-bold">Name:</span>&nbsp;{{client.name}}</div>
+        <div class="tr-row"><span class="tr-bold">Contact Person:</span>&nbsp;{{client.contactPerson}}</div>
+        <div class="tr-row"><span class="tr-bold">Contact No:</span>&nbsp;{{client.phone}}</div>
+        <div class="tr-row"><span class="tr-bold">Email:</span>&nbsp;{{client.email}}</div>
+        <div class="tr-row" style="min-height:30px;"></div>
+      </div>
+    </div>
+
+    <!-- Item Table -->
+    <table class="items">
+      <colgroup>
+        <col class="c-slno">
+        <col class="c-part">
+        <col class="c-qty">
+        <col class="c-rate">
+        <col class="c-amt">
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Sl<br>No</th>
+          <th>Particulars</th>
+          <th>QTY</th>
+          <th>Rate</th>
+          <th>Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{items}}
+      </tbody>
+    </table>
+
+    <!-- Summary -->
+    <div class="summary-wrap">
+      <table class="sum">
+        <tr><td>Amount</td><td>{{subtotal}}</td></tr>
+        <tr><td>GST @{{gst}}</td><td>{{gstAmount}}</td></tr>
+        <tr><td>Total Amount</td><td>{{total}}</td></tr>
+      </table>
+    </div>
+
+    <!-- Amount in words -->
+    <div class="words-row">Amount ( In words):- {{amountInWords}}</div>
+
+    <!-- Terms (full width now) -->
+    <div class="terms-band">
+      <div class="terms-left" style="flex:1;border-right:none;">
+        <p class="t-head">TERMS:</p>
+        <p class="t-item">1. Cheque in the name of {{company.name}}</p>
+        <p class="t-item">2. If Payment delayed more than 15 days, interest will be charged @ 24% p.a</p>
+        <p class="t-item">3. Once Material or Parts sold will not be returned back.</p>
+      </div>
+    </div>
+    <!-- Two-column signature boxes: Avant left, client right -->
+    <div class="sig-hdr">
+      <div class="sig-hl">ACCEPTANCE</div>
+      <div class="sig-hr">For {{company.name}}</div>
+    </div>
+    <div class="sig-body2">
+      <div class="sig-bl2">
+        <div class="sig-line2"></div>
+        <div class="sig-lbl2">Authorised Signatory with Stamp</div>
+      </div>
+      <div class="sig-br2">
+        <div class="sig-line2"></div>
+        <div class="sig-lbl2">Authorised Signatory</div>
+      </div>
+    </div>
+
+  </div><!-- /inv-wrap -->
+
+  <img src="https://impdocuments-110114701220-eu-north-1-an.s3.eu-north-1.amazonaws.com/Footer_AEC.png" class="footer-img" alt="Avant Footer">
+
+</div>
+</body>
+</html>
