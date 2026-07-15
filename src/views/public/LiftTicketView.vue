@@ -127,7 +127,6 @@ import { signInAnonymously } from 'firebase/auth'
 import { auth as firebaseAuth } from '@/firebase/config'
 import { getOne, create } from '@/firebase/firestore'
 import { Collections } from '@/firebase/collections'
-import { notifyTicketCreated } from '@/composables/useWorkerNotify'
 
 const route = useRoute()
 const projectId = route.query.projectId || ''
@@ -226,7 +225,7 @@ async function submitTicket() {
   submitting.value = true
   try {
     const ref = generateRef()
-    const docId = await create(Collections.TICKETS, {
+    await create(Collections.TICKETS, {
       ticketRef: ref,
       projectId,
       liftId,
@@ -244,7 +243,6 @@ async function submitTicket() {
     })
     ticketRef.value = ref
     submitted.value = true
-    notifyTicketCreated({ id: docId, ticketRef: ref, projectId, liftId, projectName: projectName.value, liftLocation: liftLocation.value, reporterName: form.value.reporterName.trim(), issueType: form.value.issueType })
   } catch (e) {
     submitError.value = 'Failed to submit. Please try again.'
     console.error('[LiftTicket] submit error:', e)
