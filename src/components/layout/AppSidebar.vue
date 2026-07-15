@@ -4,16 +4,10 @@
     <div class="sidebar-logo">
       <div class="logo-icon">
         <img
-          v-if="company.logoUrl"
-          :src="company.logoUrl"
+          :src="company.logoUrl || '/icon.png'"
           style="width:28px;height:28px;object-fit:contain;border-radius:5px;"
           onerror="this.style.display='none'"
         />
-        <svg v-else width="22" height="22" viewBox="0 0 24 24" fill="none">
-          <rect x="3" y="3" width="8" height="18" rx="1.5" fill="rgba(220,38,38,0.9)"/>
-          <rect x="13" y="3" width="8" height="11" rx="1.5" fill="rgba(185,28,28,0.7)"/>
-          <rect x="13" y="16" width="8" height="5" rx="1.5" fill="rgba(220,38,38,0.5)"/>
-        </svg>
       </div>
       <div class="logo-text" v-show="ui.sidebarOpen">
         <span class="logo-name">{{ company.name || 'Avant Elevators' }}</span>

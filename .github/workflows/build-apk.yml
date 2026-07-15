@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: [claude/app-analysis-smtp-63d9kn, main]
+    branches: [main, claude/avant-elevators-app-setup-6xxijq]
   workflow_dispatch:
 
 jobs:
