@@ -15,7 +15,7 @@
         <button class="btn-secondary btn-sm" @click="showImportModal = true">
           <Upload :size="14" /> Import Excel
         </button>
-        <button v-if="authStore.can('canCreateService')" class="btn-primary" @click="openAdd">
+        <button v-if="authStore.can('canCreateService') || authStore.role === 'technician'" class="btn-primary" @click="openAdd">
           <Plus :size="16" /> Log Activity
         </button>
       </div>

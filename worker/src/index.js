@@ -4,8 +4,6 @@
  * Replaces all Firebase Cloud Functions:
  *
  * HTTP endpoints (called from Vue client):
- *   POST /otp/send     — generate & email admin OTP (uses mailer API)
- *   POST /otp/verify   — validate OTP, stored in KV
  *   POST /notify       — send FCM push notification after a Firestore write
  *
  * Cron triggers (wrangler.toml [triggers].crons):
@@ -18,16 +16,9 @@
  *   FIREBASE_PROJECT_ID   — e.g. avant-elevators
  *   MAILER_URL            — https://x4m2x4kscj.execute-api.ap-south-1.amazonaws.com/v1
  *   MAILER_API_KEY        — your mailer API key
- *   OTP_SENDER_EMAIL      — Zoho (or other) email address for OTP sending
- *   OTP_SENDER_PASSWORD   — Zoho app password
- *   OTP_SMTP_PROVIDER     — "zoho" | "gmail" | "custom"
- *
- * KV namespace:
- *   OTP_KV — bound in wrangler.toml, stores OTPs with 5-min TTL
  */
 
-import { handleSendOtp, handleVerifyOtp } from './otp.js'
-import { handleNotify }                   from './notify.js'
+import { handleNotify } from './notify.js'
 import {
   runAmcExpiryReminder,
   runAmcInstallmentReminder,
@@ -69,9 +60,7 @@ export default {
       return new Response('Unauthorized', { status: 401 })
     }
 
-    if (url.pathname === '/otp/send')   return handleSendOtp(request, env)
-    if (url.pathname === '/otp/verify') return handleVerifyOtp(request, env)
-    if (url.pathname === '/notify')     return handleNotify(request, env)
+    if (url.pathname === '/notify') return handleNotify(request, env)
 
     return new Response('Not Found', { status: 404 })
   },

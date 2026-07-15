@@ -346,7 +346,7 @@ const navGroups = [
 .sidebar-logo {
   display: flex; align-items: center; gap: 10px;
   padding: 18px 14px; flex-shrink: 0;
-  background: #0f2044;
+  background: #000000;
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 .logo-icon {
@@ -364,7 +364,7 @@ const navGroups = [
 .user-card {
   display: flex; align-items: center; gap: 10px;
   padding: 10px 14px; overflow: hidden; white-space: nowrap;
-  background: #0f2044;
+  background: #000000;
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 .user-avatar {
@@ -401,12 +401,12 @@ const navGroups = [
 .nav-scroll-down { background: linear-gradient(to top,   #000000 30%, transparent); }
 .nav-scroll-btn:hover { color: rgba(255,255,255,0.8); }
 
-/* ── Group labels — metallic grey pill ───────────────────────────────── */
+/* ── Group labels ────────────────────────────────────────────────────── */
 .nav-group-label {
   font-size: 10px; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.09em;
-  color: #e2e8f0;
-  background: #2d3748;
+  color: rgba(255,255,255,0.3);
+  background: transparent;
   border-radius: 6px;
   padding: 4px 8px;
   margin: 10px 0 4px;
@@ -495,16 +495,16 @@ const navGroups = [
 
 /* ── Light theme: sidebar stays BLACK — only content area goes off-white */
 [data-theme="light"] .sidebar { background: #000000; border-right-color: rgba(255,255,255,0.06); }
-[data-theme="light"] .sidebar-logo { background: #0f2044; border-bottom-color: rgba(255,255,255,0.08); }
+[data-theme="light"] .sidebar-logo { background: #000000; border-bottom-color: rgba(255,255,255,0.08); }
 [data-theme="light"] .logo-icon { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.2); }
 [data-theme="light"] .logo-name { color: #fff; }
 [data-theme="light"] .logo-tag { color: #93c5fd; }
-[data-theme="light"] .user-card { background: #0f2044; border-bottom-color: rgba(255,255,255,0.08); }
+[data-theme="light"] .user-card { background: #000000; border-bottom-color: rgba(255,255,255,0.08); }
 [data-theme="light"] .user-avatar { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.25); color: #fff; }
 [data-theme="light"] .user-name { color: #fff; }
 [data-theme="light"] .user-role { color: #93c5fd; }
 [data-theme="light"] .divider { border-top-color: rgba(255,255,255,0.05); }
-[data-theme="light"] .nav-group-label { background: #2d3748; color: #e2e8f0; }
+[data-theme="light"] .nav-group-label { background: transparent; color: rgba(255,255,255,0.3); }
 [data-theme="light"] .nav-item { color: rgba(255,255,255,0.55); }
 [data-theme="light"] .nav-item:hover { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.9); }
 [data-theme="light"] .nav-item.active { background: #fff; color: #0f172a; border: none; }

@@ -227,7 +227,7 @@
                 <div style="font-weight:600;color:var(--ct-primary);">{{ selectedContract?.clientName }}</div>
                 <div style="font-size:12px;color:var(--ct-muted);">{{ selectedContract?.contractNumber }} &bull; {{ selectedContract?.frequency }}</div>
               </div>
-              <button class="btn-primary btn-sm" @click="openLogMaintenance">
+              <button class="btn-primary btn-sm" @click="openLogMaintenance()">
                 <Plus :size="14" /> Log Maintenance
               </button>
             </div>
@@ -253,9 +253,9 @@
                     <div style="font-size:10px;color:var(--ct-accent);text-transform:uppercase;letter-spacing:.05em;">
                       {{ month.logs.length > 1 ? 'Visit ' + (li + 1) : 'Visit' }}
                     </div>
-                    <div v-if="isAdmin" style="display:flex;gap:4px;">
+                    <div v-if="isAdmin || isReception" style="display:flex;gap:4px;">
                       <button class="btn-secondary btn-sm" style="padding:2px 6px;" @click.stop="openEditLog(lg)" title="Edit"><Pencil :size="10" /></button>
-                      <button class="btn-danger btn-sm" style="padding:2px 6px;" @click.stop="confirmDeleteLog(lg)" title="Delete"><Trash2 :size="10" /></button>
+                      <button v-if="isAdmin" class="btn-danger btn-sm" style="padding:2px 6px;" @click.stop="confirmDeleteLog(lg)" title="Delete"><Trash2 :size="10" /></button>
                     </div>
                   </div>
                   <div style="font-size:12px;color:var(--ct-muted);">Date: <span style="color:var(--ct-sub);">{{ formatDate(lg.date) }}</span></div>
@@ -444,7 +444,7 @@
           <div v-if="inst.isPaid">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:var(--ct-muted);padding:8px 10px;background:rgba(74,222,128,0.04);border-radius:8px;border:1px solid rgba(74,222,128,0.12);">
               <span>✓ {{ formatCurrency(inst.paidAmount) }} via {{ inst.paidMethod || '—' }}<span v-if="inst.paidReference"> · Ref: {{ inst.paidReference }}</span></span>
-              <button v-if="isAdmin" class="btn-secondary btn-sm" style="padding:3px 7px;flex-shrink:0;" title="Edit payment" @click.stop="editingInstPay?.contractId === inst.contractId && editingInstPay?.origIdx === inst.paidHistoryIdx ? editingInstPay = null : openInstPayEdit(inst)">
+              <button v-if="isAdmin || isReception" class="btn-secondary btn-sm" style="padding:3px 7px;flex-shrink:0;" title="Edit payment" @click.stop="editingInstPay?.contractId === inst.contractId && editingInstPay?.origIdx === inst.paidHistoryIdx ? editingInstPay = null : openInstPayEdit(inst)">
                 <Pencil :size="11" />
               </button>
             </div>
@@ -1217,7 +1217,7 @@
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
                   <span style="color:#10b981;font-weight:600;font-size:13px;">Rs. {{ Number(ph.amount).toLocaleString('en-IN') }}</span>
-                  <button v-if="isAdmin" class="btn-secondary btn-sm" @click="startEditPay(i)" style="padding:3px 7px;" title="Edit payment">
+                  <button v-if="isAdmin || isReception" class="btn-secondary btn-sm" @click="startEditPay(i)" style="padding:3px 7px;" title="Edit payment">
                     <Pencil :size="11" />
                   </button>
                 </div>
@@ -2640,7 +2640,7 @@ function mapLogToLiftSelection(projParam) {
 function openLogMaintenance(monthKeyOverride) {
   editingLog.value = null
   logForm.value = defaultLogForm()
-  if (monthKeyOverride) {
+  if (monthKeyOverride && typeof monthKeyOverride === 'string') {
     const [y, m] = monthKeyOverride.split('-').map(Number)
     logForm.value.month = m
     logForm.value.year  = y

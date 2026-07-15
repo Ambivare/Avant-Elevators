@@ -95,11 +95,11 @@
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px;">
               <div style="font-size:11px;color:var(--ct-muted);text-transform:uppercase;letter-spacing:.05em;">Maintenance Visits</div>
               <div style="display:flex;gap:6px;">
-                <button v-if="isAdmin || auth.role === 'technician'" class="btn-primary btn-sm" @click.stop="openMonthCompletion(contract)">
+                <button v-if="isAdmin || isTech || isReception" class="btn-primary btn-sm" @click.stop="openMonthCompletion(contract)">
                   <Plus :size="12" /> Log Visit
                 </button>
                 <button
-                  v-if="(isAdmin || auth.role === 'technician') && !isCurrentMonthLogged(contract.id)"
+                  v-if="(isAdmin || isTech || isReception) && !isCurrentMonthLogged(contract.id)"
                   class="btn-success btn-sm"
                   @click.stop="openMonthCompletion(contract)"
                 >
@@ -173,10 +173,10 @@
                 >
                   <CheckCircle :size="11" />
                 </button>
-                <button v-if="isAdmin" class="btn-secondary btn-sm" @click.stop="openEditAmcVisit(visit, contract)">
+                <button v-if="isAdmin || isReception" class="btn-secondary btn-sm" @click.stop="openEditAmcVisit(visit, contract)">
                   <Pencil :size="11" />
                 </button>
-                <button v-if="auth.can('canDelete') && isAdmin" class="btn-danger btn-sm" @click.stop="deleteAmcVisit(visit)">
+                <button v-if="auth.can('canDelete')" class="btn-danger btn-sm" @click.stop="deleteAmcVisit(visit)">
                   <Trash2 :size="11" />
                 </button>
               </div>
@@ -900,8 +900,9 @@ const activity = useActivityStore()
 const auth = useAuthStore()
 const { exportTablePDF, _getCtx } = usePDF()
 const { showExportDialog, dialogVisible: expDlgVisible, selectedPeriod: expPeriod, exportType: expType, exporting: expRunning, runExport, cancelExport } = useExport()
-const isTech = computed(() => auth.role === 'technician')
-const isAdmin = computed(() => auth.role === 'admin')
+const isTech       = computed(() => auth.role === 'technician')
+const isAdmin      = computed(() => auth.role === 'admin')
+const isReception  = computed(() => auth.role === 'reception')
 
 function triggerMaintDownload(url, filename) { triggerDownload(url, filename) }
 

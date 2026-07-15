@@ -44,7 +44,6 @@ export const Collections = {
   TRACKING_SESSIONS: 'trackingSessions',
   LOCATION_HISTORY: 'locationHistory',
   INVENTORY_USAGE: 'inventoryUsage',
-  ADMIN_OTPS: 'adminOtps',
   TICKETS: 'tickets',
   LIFT_CERTIFICATES: 'liftCertificates',
 }

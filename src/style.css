@@ -28,8 +28,6 @@
 
   body {
     background-color: #000000;
-    background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='240'><g opacity='0.04'><rect x='22' y='0' width='3' height='240' rx='1.5' fill='white'/><rect x='155' y='0' width='3' height='240' rx='1.5' fill='white'/><rect x='16' y='50' width='15' height='6' rx='2' fill='white'/><rect x='149' y='50' width='15' height='6' rx='2' fill='white'/><rect x='16' y='184' width='15' height='6' rx='2' fill='white'/><rect x='149' y='184' width='15' height='6' rx='2' fill='white'/><line x1='90' y1='0' x2='90' y2='78' stroke='white' stroke-width='1.5' stroke-dasharray='3,6'/><rect x='30' y='78' width='120' height='148' rx='5' stroke='white' stroke-width='1.5' fill='none'/><line x1='90' y1='84' x2='90' y2='221' stroke='white' stroke-width='1'/><circle cx='80' cy='155' r='3' fill='white'/><circle cx='100' cy='155' r='3' fill='white'/><line x1='30' y1='100' x2='150' y2='100' stroke='white' stroke-width='0.75'/></g></svg>");
-    background-repeat: repeat;
     color: #e2e8f0;
     font-family: 'Inter', 'SF Pro Display', system-ui, sans-serif;
     min-height: 100vh;
@@ -79,12 +77,12 @@
   }
 
   .glass {
-    background: #0d0d0f;
+    background: #111111;
     border: 1px solid rgba(255,255,255,0.14);
     border-radius: 16px;
   }
   .glass-strong {
-    background: #0a0a0c;
+    background: #0f0f0f;
     border: 1px solid rgba(255,255,255,0.14);
     border-radius: 20px;
   }
@@ -94,7 +92,7 @@
   }
 
   .stat-card {
-    background: #0d0d0f;
+    background: #111111;
     border: 1px solid rgba(255,255,255,0.14);
     border-radius: 16px;
     padding: 24px;
@@ -196,7 +194,7 @@
     border-color: rgba(220,38,38,0.45);
     box-shadow: 0 0 0 3px rgba(220,38,38,0.12);
   }
-  select.input option { background: #12121e; color: #e2e8f0; }
+  select.input option { background: #000000; color: #e2e8f0; }
   textarea.input { resize: vertical; min-height: 80px; }
 
   .label { display: block; font-size: 12px; font-weight: 500; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
@@ -230,7 +228,7 @@
     backdrop-filter: blur(10px);
   }
   .modal-panel {
-    background: #0a0a0c;
+    background: #0f0f0f;
     backdrop-filter: blur(40px);
     -webkit-backdrop-filter: blur(40px);
     border: 1px solid rgba(255,255,255,0.1);
@@ -276,7 +274,7 @@
   .divider { border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 20px 0; }
 
   .table-container {
-    background: #0d0d0f;
+    background: #111111;
     border: 1px solid rgba(255,255,255,0.14);
     border-radius: 16px; overflow-x: auto; overflow-y: visible;
     -webkit-overflow-scrolling: touch;

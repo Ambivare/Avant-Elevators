@@ -324,8 +324,8 @@ async function handleLogout() {
   justify-content: space-between;
   padding: env(safe-area-inset-top, 0) 20px 0;
   height: calc(60px + env(safe-area-inset-top, 0));
-  background: #0f2044;
-  border-bottom: 1px solid rgba(0,0,0,0.2);
+  background: #000000;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
   flex-shrink: 0;
   position: sticky;
   top: 0;
@@ -582,10 +582,10 @@ async function handleLogout() {
   .user-chevron { display: none; }
 }
 
-/* ── Light theme: header stays flat dark red ─────────────────────────── */
+/* ── Light theme: header matches sidebar black ───────────────────────── */
 [data-theme="light"] .app-header {
-  background: #0f2044;
-  border-bottom-color: rgba(0,0,0,0.2);
+  background: #000000;
+  border-bottom-color: rgba(255,255,255,0.07);
 }
 /* Search results dropdown — white panel below red bar */
 [data-theme="light"] .search-results { background: rgba(255,255,255,0.99); border-color: rgba(0,0,0,0.1); box-shadow: 0 20px 60px rgba(0,0,0,0.18); }

@@ -98,7 +98,6 @@ export async function queryWhere(token, projectId, collection, where, limit) {
   return runQuery(token, projectId, q)
 }
 
-/** Export docToObj so otp.js can use it (for future map field parsing). */
 export { docToObj }
 
 /** Get all documents in a collection (use sparingly — full scan). */

@@ -12,7 +12,7 @@
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
         <button class="btn-secondary btn-sm" @click="triggerExport('pdf')"><FileDown :size="14" /> PDF</button>
         <button class="btn-secondary btn-sm" @click="triggerExport('excel')"><FileText :size="14" /> Excel</button>
-        <button v-if="authStore.can('canCreateService')" class="btn-primary" @click="openAdd">
+        <button v-if="authStore.can('canCreateService') || authStore.role === 'technician'" class="btn-primary" @click="openAdd">
           <Plus :size="16" /> Log Activity
         </button>
       </div>
