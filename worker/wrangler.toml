@@ -3,14 +3,14 @@ main = "src/index.js"
 compatibility_date = "2024-09-23"
 
 # Cron triggers — all times in UTC, mapped to IST (UTC+5:30)
+# Cloudflare's Free plan caps Workers at 5 cron triggers per account, so several
+# same-day reminders share a single trigger time (see the scheduled() switch in
+# src/index.js — each slot below fans out to more than one reminder function).
 [triggers]
 crons = [
-  "0 2 * * *",    # 7:30 AM IST  — service schedule reminder
-  "30 2 * * *",   # 8:00 AM IST  — overdue tasks reminder
+  "0 2 * * *",    # 7:30 AM IST  — service schedule + overdue tasks + lead follow-up reminders
   "30 2 1 * *",   # 8:00 AM IST 1st of month — monthly maintenance reminder
-  "0 3 * * *",    # 8:30 AM IST  — lead follow-up reminder
-  "30 3 * * *",   # 9:00 AM IST  — AMC expiry reminder
-  "35 3 * * *",   # 9:05 AM IST  — AMC installment reminder
+  "30 3 * * *",   # 9:00 AM IST  — AMC expiry + AMC installment reminders
   "0 4 * * *",    # 9:30 AM IST  — invoice overdue + punch-in reminder
   "30 4 * * *",   # 10:00 AM IST — daily preventive maintenance alert to techs
 ]

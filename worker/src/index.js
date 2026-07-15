@@ -72,15 +72,22 @@ export default {
 
     const run = (fn) => ctx.waitUntil(fn(env).catch(e => console.error('[cron] error:', e.message)))
 
-    // cron strings must match wrangler.toml exactly
-    if (cron === '0 2 * * *')   { run(runServiceScheduleReminder); return }
-    if (cron === '30 2 * * *')  { run(runOverdueTasksReminder);    return }
-    if (cron === '30 2 1 * *')  { run(runMaintenanceReminder);     return }
-    if (cron === '0 3 * * *')   { run(runLeadFollowUpReminder);    return }
-    if (cron === '30 3 * * *')  { run(runAmcExpiryReminder);       return }
-    if (cron === '35 3 * * *')  { run(runAmcInstallmentReminder);  return }
+    // cron strings must match wrangler.toml exactly.
+    // Cloudflare's Free plan caps a worker at 5 cron triggers total, so several
+    // same-day reminders share one trigger time here.
+    if (cron === '0 2 * * *')   {
+      run(runServiceScheduleReminder)
+      run(runOverdueTasksReminder)
+      run(runLeadFollowUpReminder)
+      return
+    }
+    if (cron === '30 2 1 * *')  { run(runMaintenanceReminder); return }
+    if (cron === '30 3 * * *')  {
+      run(runAmcExpiryReminder)
+      run(runAmcInstallmentReminder)
+      return
+    }
     if (cron === '0 4 * * *')   {
-      // Two jobs share the same cron slot
       run(runInvoiceOverdueReminder)
       run(runPunchInReminder)
       return

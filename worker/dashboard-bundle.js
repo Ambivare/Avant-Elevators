@@ -20,9 +20,10 @@
  *   MAILER_URL          — https://x4m2x4kscj.execute-api.ap-south-1.amazonaws.com/v1
  *   MAILER_API_KEY      — Ambivare@9822091922
  *
- * Cron Triggers (Worker -> Settings -> Triggers -> Cron Triggers), add all 8:
- *   0 2 * * *     30 2 * * *     30 2 1 * *     0 3 * * *
- *   30 3 * * *    35 3 * * *     0 4 * * *       30 4 * * *
+ * Cron Triggers (Worker -> Settings -> Triggers -> Cron Triggers), add all 5
+ * (Cloudflare's Free plan caps a worker at 5 triggers total — these already
+ * fan out to every reminder job, see the scheduled() switch below):
+ *   0 2 * * *     30 2 1 * *     30 3 * * *     0 4 * * *     30 4 * * *
  */
 
 // worker/src/auth.js
@@ -1034,25 +1035,16 @@ var index_default = {
     const run = (fn) => ctx.waitUntil(fn(env).catch((e) => console.error("[cron] error:", e.message)));
     if (cron === "0 2 * * *") {
       run(runServiceScheduleReminder);
-      return;
-    }
-    if (cron === "30 2 * * *") {
       run(runOverdueTasksReminder);
+      run(runLeadFollowUpReminder);
       return;
     }
     if (cron === "30 2 1 * *") {
       run(runMaintenanceReminder);
       return;
     }
-    if (cron === "0 3 * * *") {
-      run(runLeadFollowUpReminder);
-      return;
-    }
     if (cron === "30 3 * * *") {
       run(runAmcExpiryReminder);
-      return;
-    }
-    if (cron === "35 3 * * *") {
       run(runAmcInstallmentReminder);
       return;
     }
