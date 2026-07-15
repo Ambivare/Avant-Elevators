@@ -1,4 +1,4 @@
-package com.avant.elevators;
+package com.avantelevators.app;
 
 import com.getcapacitor.BridgeActivity;
 

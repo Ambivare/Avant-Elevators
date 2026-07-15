@@ -30,23 +30,23 @@ jobs:
       - name: Setup gcloud CLI
         uses: google-github-actions/setup-gcloud@v2
         with:
-          project_id: avantelevators-dff70
+          project_id: avant-elevators
 
       - name: Grant required IAM bindings for Cloud Functions v2
         run: |
-          PROJECT_NUMBER=$(gcloud projects describe avantelevators-dff70 --format="value(projectNumber)")
+          PROJECT_NUMBER=$(gcloud projects describe avant-elevators --format="value(projectNumber)")
 
-          gcloud projects add-iam-policy-binding avantelevators-dff70 \
+          gcloud projects add-iam-policy-binding avant-elevators \
             --member="serviceAccount:service-${PROJECT_NUMBER}@gcp-sa-pubsub.iam.gserviceaccount.com" \
             --role="roles/iam.serviceAccountTokenCreator" \
             --condition=None 2>/dev/null || true
 
-          gcloud projects add-iam-policy-binding avantelevators-dff70 \
+          gcloud projects add-iam-policy-binding avant-elevators \
             --member="serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
             --role="roles/run.invoker" \
             --condition=None 2>/dev/null || true
 
-          gcloud projects add-iam-policy-binding avantelevators-dff70 \
+          gcloud projects add-iam-policy-binding avant-elevators \
             --member="serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
             --role="roles/eventarc.eventReceiver" \
             --condition=None 2>/dev/null || true
@@ -65,4 +65,4 @@ jobs:
           printf "ZOHO_SMTP_HOST=%s\n"    "${{ secrets.ZOHO_SMTP_HOST }}"    >> functions/.env
 
       - name: Deploy to Firebase
-        run: firebase deploy --only functions --project avantelevators-dff70 --force
+        run: firebase deploy --only functions --project avant-elevators --force

@@ -7,7 +7,7 @@
  *   WORKER_SECRET       — any random string (same value in VITE_WORKER_SECRET in .env)
  *   SA_EMAIL            — Firebase service account email
  *   SA_PRIVATE_KEY      — Firebase service account private_key (keep the \n chars)
- *   FIREBASE_PROJECT_ID — avantelevators-dff70
+ *   FIREBASE_PROJECT_ID — avant-elevators
  *   MAILER_URL          — https://x4m2x4kscj.execute-api.ap-south-1.amazonaws.com/v1
  *   MAILER_API_KEY      — Ambivare@9822091922
  *

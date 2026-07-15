@@ -1,17 +1,29 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "avantelevators-dff70",
-    "storage_bucket": "avantelevators-dff70.appspot.com"
+    "project_number": "762167301144",
+    "project_id": "avant-elevators",
+    "storage_bucket": "avant-elevators.firebasestorage.app"
   },
-  "client": [{
-    "client_info": {
-      "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
-      "android_client_info": { "package_name": "com.avant.elevators" }
-    },
-    "oauth_client": [],
-    "api_key": [{ "current_key": "placeholder" }],
-    "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
-  }],
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:762167301144:android:265f9dc7a509b267131f6d",
+        "android_client_info": {
+          "package_name": "com.avantelevators.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB5kH6d8eDFOP8ZpOHoCFa-VL3KUDrrzrk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
   "configuration_version": "1"
 }

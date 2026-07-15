@@ -4,15 +4,15 @@ import { getAuth } from 'firebase/auth'
 import { getStorage } from 'firebase/storage'
 import { getAnalytics } from 'firebase/analytics'
 
-// ── Firebase Configuration (avantelevators-dff70) ────────────────────────────────
+// ── Firebase Configuration (avant-elevators) ────────────────────────────────
 const firebaseConfig = {
-  apiKey:            'AIzaSyAvcfIgVWTB8c_s1-mP2w5jCHzEvvqaxIs',
-  authDomain:        'avantelevators-dff70.firebaseapp.com',
-  projectId:         'avantelevators-dff70',
-  storageBucket:     'avantelevators-dff70.firebasestorage.app',
-  messagingSenderId: '29570477853',
-  appId:             '1:29570477853:web:0ec91c39c6fa19ad50bbf4',
-  measurementId:     'G-NFJEYX8Z3Z',
+  apiKey:            'AIzaSyDzd31b6HsFj-EKuNb2HYHt_T3TWDghxdw',
+  authDomain:        'avant-elevators.firebaseapp.com',
+  projectId:         'avant-elevators',
+  storageBucket:     'avant-elevators.firebasestorage.app',
+  messagingSenderId: '762167301144',
+  appId:             '1:762167301144:web:01117f5554ab7ac6131f6d',
+  measurementId:     'G-4Q8ZVTW75Y',
 }
 
 const app = initializeApp(firebaseConfig)

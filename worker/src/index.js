@@ -15,7 +15,7 @@
  *   WORKER_SECRET         — shared key Vue app sends in X-API-Key header
  *   SA_EMAIL              — Firebase service account email
  *   SA_PRIVATE_KEY        — Firebase service account private key (PEM, \n as literal \\n)
- *   FIREBASE_PROJECT_ID   — e.g. avantelevators-dff70
+ *   FIREBASE_PROJECT_ID   — e.g. avant-elevators
  *   MAILER_URL            — https://x4m2x4kscj.execute-api.ap-south-1.amazonaws.com/v1
  *   MAILER_API_KEY        — your mailer API key
  *   OTP_SENDER_EMAIL      — Zoho (or other) email address for OTP sending
