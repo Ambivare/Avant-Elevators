@@ -131,7 +131,7 @@ function getProjectName(id) {
 }
 
 // ── AMC Installment helper (mirrors AMCView logic) ────────────────────────────
-const FREQ_TO_MONTHS = { monthly: 1, 'bi-monthly': 2, quarterly: 3, '4-monthly': 4, 'half-yearly': 6, yearly: 12 }
+const FREQ_TO_MONTHS = { monthly: 1, 'bi-monthly': 2, quarterly: 3, '4-monthly': 4, 'half-yearly': 6, '6-months': 6, yearly: 12 }
 
 function getNextInstallment(contract) {
   if (contract.paymentType !== 'installments') return null

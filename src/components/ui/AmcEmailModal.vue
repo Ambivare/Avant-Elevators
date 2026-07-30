@@ -151,7 +151,7 @@ const renderedTemplate = computed(() => {
     .replace(/\{\{contract\.endDate\}\}/g,   formatDate(row.endDate))
     .replace(/\{\{contract\.value\}\}/g,   formatCurrency(row.totalWithGST || row.contractValue))
     .replace(/\{\{contract\.duration\}\}/g,  row.durationMonths ? `${row.durationMonths} months` : '')
-    .replace(/\{\{contract\.type\}\}/g,    row.isComprehensive ? 'Comprehensive' : 'Non-Comprehensive')
+    .replace(/\{\{contract\.type\}\}/g,    { gold: 'Gold', silver: 'Silver', platinum: 'Platinum' }[row.contractTier || (row.isComprehensive === false ? 'silver' : 'gold')] || 'Gold')
     .replace(/\{\{company\.name\}\}/g,     company.name    || '')
     .replace(/\{\{company\.email\}\}/g,    company.email   || '')
     .replace(/\{\{company\.phone\}\}/g,    company.phone   || '')

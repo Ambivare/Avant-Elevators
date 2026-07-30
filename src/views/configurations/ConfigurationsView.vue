@@ -967,7 +967,7 @@ function previewAmcEmailTemplate() {
     .replace(/\{\{contract\.endDate\}\}/g, '31 Dec 2024')
     .replace(/\{\{contract\.value\}\}/g, '₹36,000')
     .replace(/\{\{contract\.duration\}\}/g, '12 months')
-    .replace(/\{\{contract\.type\}\}/g, 'Comprehensive')
+    .replace(/\{\{contract\.type\}\}/g, 'Gold')
     .replace(/\{\{company\.name\}\}/g, co.name || 'Avant Elevators')
     .replace(/\{\{company\.email\}\}/g, co.email || 'info@avantlifts.com')
     .replace(/\{\{company\.phone\}\}/g, co.phone || '+91 98765 43210')

@@ -56,8 +56,9 @@
         </select>
         <select v-model="comprehensiveFilter" class="input" style="width:185px;">
           <option value="">All Contract Types</option>
-          <option value="true">Comprehensive</option>
-          <option value="false">Non-Comprehensive</option>
+          <option value="gold">Gold</option>
+          <option value="silver">Silver</option>
+          <option value="platinum">Platinum</option>
         </select>
       </div>
 
@@ -707,27 +708,29 @@
           <input v-model="contractForm.endDate" class="input" type="date" />
         </div>
         <div class="form-group">
-          <label class="label">Frequency</label>
-          <select v-model="contractForm.frequency" class="input">
-            <option value="monthly">Monthly (every month)</option>
-            <option value="bi-monthly">Every 2 Months</option>
-            <option value="quarterly">Quarterly (every 3 months)</option>
-            <option value="4-monthly">Every 4 Months</option>
-            <option value="half-yearly">Half-Yearly (every 6 months)</option>
-            <option value="yearly">Yearly</option>
+          <label class="label">Payment Installments</label>
+          <select v-model="paymentPlan" class="input">
+            <option value="full">Full Payment</option>
+            <option value="6-months">6 Months</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="monthly">Monthly</option>
           </select>
         </div>
         <!-- Comprehensive / Non-Comprehensive toggle -->
         <div class="form-group form-full">
           <label class="label">Contract Type</label>
           <div style="display:flex;gap:10px;">
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);font-size:13px;color:var(--ct-sub);transition:all .15s;" :style="contractForm.isComprehensive === true ? 'background:rgba(16,185,129,0.1);border-color:rgba(16,185,129,0.3);color:var(--ct-green);' : ''">
-              <input type="radio" :value="true" v-model="contractForm.isComprehensive" style="accent-color:#10b981;" />
-              Comprehensive
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);font-size:13px;color:var(--ct-sub);transition:all .15s;" :style="contractForm.contractTier === 'gold' ? 'background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.3);color:#fbbf24;' : ''">
+              <input type="radio" value="gold" v-model="contractForm.contractTier" style="accent-color:#f59e0b;" />
+              Gold
             </label>
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);font-size:13px;color:var(--ct-sub);transition:all .15s;" :style="contractForm.isComprehensive === false ? 'background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.3);color:#fbbf24;' : ''">
-              <input type="radio" :value="false" v-model="contractForm.isComprehensive" style="accent-color:#f59e0b;" />
-              Non-Comprehensive
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);font-size:13px;color:var(--ct-sub);transition:all .15s;" :style="contractForm.contractTier === 'silver' ? 'background:rgba(148,163,184,0.15);border-color:rgba(148,163,184,0.35);color:#cbd5e1;' : ''">
+              <input type="radio" value="silver" v-model="contractForm.contractTier" style="accent-color:#94a3b8;" />
+              Silver
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);font-size:13px;color:var(--ct-sub);transition:all .15s;" :style="contractForm.contractTier === 'platinum' ? 'background:rgba(99,102,241,0.1);border-color:rgba(99,102,241,0.3);color:var(--ct-accent);' : ''">
+              <input type="radio" value="platinum" v-model="contractForm.contractTier" style="accent-color:#6366f1;" />
+              Platinum
             </label>
           </div>
         </div>
@@ -751,13 +754,6 @@
         <div v-if="!isTech" class="form-group">
           <label class="label">Total with GST (₹)</label>
           <input :value="contractForm.totalWithGST" class="input" readonly style="color:var(--ct-accent);font-weight:600;opacity:.9;" />
-        </div>
-        <div v-if="!isTech" class="form-group">
-          <label class="label">Payment Type</label>
-          <select v-model="contractForm.paymentType" class="input">
-            <option value="full">Full Payment</option>
-            <option value="installments">Installments</option>
-          </select>
         </div>
         <div class="form-group">
           <label class="label">Status</label>
@@ -1013,8 +1009,9 @@
             <div class="form-group">
               <label class="label">Contract Type</label>
               <select v-model="renewForm.contractType" class="input">
-                <option value="Comprehensive">Comprehensive</option>
-                <option value="Non-Comprehensive">Non-Comprehensive</option>
+                <option value="Gold">Gold</option>
+                <option value="Silver">Silver</option>
+                <option value="Platinum">Platinum</option>
               </select>
             </div>
             <div class="form-group">
@@ -1337,7 +1334,7 @@
           <div style="font-size:12px;color:var(--ct-muted);margin-top:2px;">{{ viewTarget.contractNumber }} &bull; {{ viewTarget.frequency }}</div>
           <div style="margin-top:8px;">
             <span :class="['badge', contractStatusBadge(viewTarget.status)]">{{ viewTarget.status }}</span>
-            <span v-if="viewTarget.comprehensive" class="badge badge-info" style="margin-left:6px;">Comprehensive</span>
+            <span :class="['badge', tierBadgeClass(viewTarget)]" style="margin-left:6px;">{{ tierLabel(viewTarget) }}</span>
           </div>
         </div>
 
@@ -1902,7 +1899,7 @@ const paymentsSearch = ref('')
 
 const FREQ_TO_MONTHS = {
   'monthly': 1, 'bi-monthly': 2, 'quarterly': 3,
-  '4-monthly': 4, 'half-yearly': 6, 'yearly': 12,
+  '4-monthly': 4, 'half-yearly': 6, '6-months': 6, 'yearly': 12,
 }
 
 const allInstallments = computed(() => {
@@ -2083,7 +2080,7 @@ const filteredContracts = computed(() => {
     )
   }
   if (contractStatusFilter.value) list = list.filter(c => effectiveStatus(c) === contractStatusFilter.value)
-  if (comprehensiveFilter.value !== '') list = list.filter(c => String(c.isComprehensive) === comprehensiveFilter.value)
+  if (comprehensiveFilter.value !== '') list = list.filter(c => tierOf(c) === comprehensiveFilter.value)
   return list
 })
 
@@ -2156,11 +2153,46 @@ const defaultContractForm = () => ({
   startDate: '', endDate: '', durationMonths: 12,
   contractValue: 0, gstPercent: 18, gstAmount: 0, totalWithGST: 0,
   frequency: 'monthly', paymentType: 'full',
-  isComprehensive: true,
+  isComprehensive: true, contractTier: 'gold',
   status: 'active', technicians: [], notes: '',
 })
 
 const contractForm = ref(defaultContractForm())
+
+// Single "Payment Installments" dropdown (Full Payment / 6 Months / Quarterly / Monthly)
+// that reads/writes the underlying paymentType + frequency fields, so every other
+// place in the app that already keys off those two fields keeps working unchanged.
+const paymentPlan = computed({
+  get() {
+    if (contractForm.value.paymentType !== 'installments') return 'full'
+    const f = contractForm.value.frequency
+    if (f === 'monthly') return 'monthly'
+    if (f === 'quarterly') return 'quarterly'
+    return '6-months' // covers '6-months' and legacy half-yearly/bi-monthly/4-monthly/yearly values
+  },
+  set(val) {
+    if (val === 'full') {
+      contractForm.value.paymentType = 'full'
+    } else {
+      contractForm.value.paymentType = 'installments'
+      contractForm.value.frequency = val
+    }
+  },
+})
+
+// Contract Type (Gold / Silver / Platinum). Falls back to the old
+// isComprehensive boolean for contracts saved before this field existed.
+function tierOf(c) {
+  if (!c) return 'gold'
+  if (c.contractTier) return c.contractTier
+  return c.isComprehensive === false ? 'silver' : 'gold'
+}
+function tierLabel(c) {
+  return { gold: 'Gold', silver: 'Silver', platinum: 'Platinum' }[tierOf(c)] || 'Gold'
+}
+function tierBadgeClass(c) {
+  return { gold: 'badge-warning', silver: 'badge-info', platinum: 'badge-purple' }[tierOf(c)] || 'badge-warning'
+}
 
 const selectedAmcProject = computed(() => allProjects.value.find(p => p.id === contractForm.value.projectId) || null)
 // Project to use for log modal: prefer the currently selected contract's project, fallback to contract form project
@@ -2879,7 +2911,7 @@ const renewForm = ref({
   // Renewal contract body fields
   liftMake: '', liftDoorType: '', liftTypology: '', liftLoad: '', liftHeight: '',
   noOfStops: '', liftLockType: '',
-  numberOfLifts: 1, contractType: 'Comprehensive', ratePerLift: '',
+  numberOfLifts: 1, contractType: 'Gold', ratePerLift: '',
   billingCycle: 'Yearly', paymentTerms: '100% Advance',
   discountEnabled: false, discountAmount: '',
 })
@@ -2929,7 +2961,7 @@ function quickRenew(contract) {
     noOfStops: '',
     liftLockType: '',
     numberOfLifts: 1,
-    contractType: contract.comprehensive ? 'Comprehensive' : 'Non-Comprehensive',
+    contractType: tierLabel(contract),
     ratePerLift: '',
     billingCycle: 'Yearly',
     paymentTerms: '100% Advance',
@@ -3030,7 +3062,7 @@ async function generateRenewalPdf() {
     html = html.replaceAll('{{NO_OF_STOPS}}', f.noOfStops || '')
     html = html.replaceAll('{{LIFT_LOCK_TYPE}}', f.liftLockType || '')
     html = html.replaceAll('{{NUM_LIFTS}}', String(f.numberOfLifts || 1))
-    html = html.replaceAll('{{CONTRACT_TYPE}}', f.contractType || 'Comprehensive')
+    html = html.replaceAll('{{CONTRACT_TYPE}}', f.contractType || 'Gold')
     html = html.replaceAll('{{RATE_PER_LIFT}}', f.ratePerLift || '')
     html = html.replaceAll('{{COMMENCEMENT_DATE}}', renewalStartStr)
     html = html.replaceAll('{{BILLING_CYCLE}}', f.billingCycle || 'Yearly')
@@ -3120,7 +3152,7 @@ async function exportContractPDF(contract) {
       company,
       userName,
       title: 'AMC Contract',
-      subtitle: `Contract No: ${contract.contractNumber || '—'} · Type: ${contract.isComprehensive ? 'Comprehensive' : 'Non-Comprehensive'}`,
+      subtitle: `Contract No: ${contract.contractNumber || '—'} · Type: ${tierLabel(contract)}`,
       accent: _C.indigo,
     })
 
@@ -3136,7 +3168,7 @@ async function exportContractPDF(contract) {
       ['Start Date', formatDate(contract.startDate)],
       ['End Date', formatDate(contract.endDate)],
       ['Frequency', contract.frequency || '—'],
-      ['Type', contract.isComprehensive ? 'Comprehensive' : 'Non-Comprehensive'],
+      ['Type', tierLabel(contract)],
     ], y)
 
     // ── Lifts ─────────────────────────────────────────────────────────────────
@@ -3219,7 +3251,7 @@ async function emailContract(contract) {
       company,
       userName,
       title: 'AMC Contract',
-      subtitle: `Contract No: ${contract.contractNumber || '—'} · Type: ${contract.isComprehensive ? 'Comprehensive' : 'Non-Comprehensive'}`,
+      subtitle: `Contract No: ${contract.contractNumber || '—'} · Type: ${tierLabel(contract)}`,
       accent: _C.indigo,
     })
 
@@ -3235,7 +3267,7 @@ async function emailContract(contract) {
       ['Start Date', formatDate(contract.startDate)],
       ['End Date', formatDate(contract.endDate)],
       ['Frequency', contract.frequency || '—'],
-      ['Type', contract.isComprehensive ? 'Comprehensive' : 'Non-Comprehensive'],
+      ['Type', tierLabel(contract)],
     ], y)
 
     if (contract.lifts?.length) {
@@ -3392,7 +3424,7 @@ function triggerExport(type) {
     pdfRowMapper: c => [
       c.contractNumber || '—',
       c.clientName || '—',
-      c.isComprehensive ? 'Comprehensive' : 'Non-Comprehensive',
+      tierLabel(c),
       formatDate(c.startDate),
       formatDate(c.endDate),
       c.frequency || '—',
@@ -3402,7 +3434,7 @@ function triggerExport(type) {
     excelRowMapper: c => [
       c.contractNumber || '—',
       c.clientName || '—',
-      c.isComprehensive ? 'Comprehensive' : 'Non-Comprehensive',
+      tierLabel(c),
       formatDate(c.startDate),
       formatDate(c.endDate),
       c.frequency || '—',

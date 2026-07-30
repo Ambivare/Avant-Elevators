@@ -74,8 +74,8 @@
                 </div>
                 <div style="font-size:11px;color:var(--ct-muted);margin-top:2px;">
                   <span v-if="contract.projectId && getProjectName(contract.projectId)" class="db-s" style="color:var(--ct-muted);">{{ contract.clientName }} &bull; </span>{{ contract.contractNumber || '—' }} &bull; {{ contract.frequency || '—' }}
-                  <span v-if="contract.isComprehensive !== undefined" style="margin-left:6px;padding:1px 6px;border-radius:99px;font-size:10px;" :style="contract.isComprehensive ? 'background:rgba(16,185,129,0.12);color:var(--ct-green);' : 'background:rgba(245,158,11,0.12);color:#fbbf24;'">
-                    {{ contract.isComprehensive ? 'Comprehensive' : 'Non-Comprehensive' }}
+                  <span style="margin-left:6px;padding:1px 6px;border-radius:99px;font-size:10px;" :style="contractTierOf(contract) === 'gold' ? 'background:rgba(245,158,11,0.12);color:#fbbf24;' : contractTierOf(contract) === 'platinum' ? 'background:rgba(99,102,241,0.12);color:var(--ct-accent);' : 'background:rgba(148,163,184,0.15);color:#cbd5e1;'">
+                    {{ contractTierLabel(contract) }}
                   </span>
                 </div>
               </div>
@@ -901,6 +901,17 @@ const auth = useAuthStore()
 const { exportTablePDF, _getCtx } = usePDF()
 const { showExportDialog, dialogVisible: expDlgVisible, selectedPeriod: expPeriod, exportType: expType, exporting: expRunning, runExport, cancelExport } = useExport()
 const isTech       = computed(() => auth.role === 'technician')
+
+// AMC contract type (Gold/Silver/Platinum), with fallback for contracts saved
+// before this field existed (mirrors the same fallback in AMCView.vue).
+function contractTierOf(c) {
+  if (!c) return 'gold'
+  if (c.contractTier) return c.contractTier
+  return c.isComprehensive === false ? 'silver' : 'gold'
+}
+function contractTierLabel(c) {
+  return { gold: 'Gold', silver: 'Silver', platinum: 'Platinum' }[contractTierOf(c)] || 'Gold'
+}
 const isAdmin      = computed(() => auth.role === 'admin')
 const isReception  = computed(() => auth.role === 'reception')
 
@@ -1204,7 +1215,7 @@ function selectMaintProject(p) {
   // Pre-fill from linked AMC contract if one exists
   const linkedAmc = amcContracts.value.find(c => c.projectId === p.id)
   if (linkedAmc) {
-    form.value.comprehensiveType = linkedAmc.isComprehensive === false ? 'non-comprehensive' : 'comprehensive'
+    form.value.comprehensiveType = contractTierOf(linkedAmc) === 'silver' ? 'non-comprehensive' : 'comprehensive'
     if (linkedAmc.frequency) form.value.maintenanceType = linkedAmc.frequency === 'monthly' ? 'routine' : 'preventive'
     const liftSel = linkedAmc.liftSelection
     if (liftSel?.liftIds?.length) form.value.elevatorId = liftSel.liftIds[0]
