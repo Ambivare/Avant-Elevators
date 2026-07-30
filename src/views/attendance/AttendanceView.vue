@@ -92,11 +92,11 @@
 
         <!-- Action button -->
         <div class="ph-action">
-          <button v-if="!todayRecord" class="ph-btn ph-btn-in" :disabled="punching" @click="startPunch('checkin')">
+          <button v-if="!todayRecord" class="ph-btn ph-btn-in" :disabled="punching || locatingForPunch" @click="startPunch('checkin')">
             <Fingerprint :size="20" />
             {{ punching ? 'Processing…' : 'Check In' }}
           </button>
-          <button v-else-if="!todayRecord.checkOutTime" class="ph-btn ph-btn-out" :disabled="punching" @click="startPunch('checkout')">
+          <button v-else-if="!todayRecord.checkOutTime" class="ph-btn ph-btn-out" :disabled="punching || locatingForPunch" @click="startPunch('checkout')">
             <LogOut :size="20" />
             {{ punching ? 'Processing…' : 'Check Out' }}
           </button>
@@ -107,14 +107,14 @@
             <!-- Overtime re-punch -->
             <template v-if="!todayRecord.otPunchIn">
               <button class="ph-btn" style="background:rgba(251,191,36,0.18);color:#fbbf24;border:1px solid rgba(251,191,36,0.3);"
-                :disabled="punching" @click="startPunch('ot-in')">
+                :disabled="punching || locatingForPunch" @click="startPunch('ot-in')">
                 <Zap :size="18" /> {{ punching ? 'Processing…' : 'Start Overtime' }}
               </button>
             </template>
             <template v-else-if="!todayRecord.otPunchOut">
               <div style="font-size:12px;color:#fbbf24;">OT started: {{ formatTime(todayRecord.otPunchIn) }}</div>
               <button class="ph-btn" style="background:rgba(251,191,36,0.18);color:#fbbf24;border:1px solid rgba(251,191,36,0.3);"
-                :disabled="punching" @click="startPunch('ot-out')">
+                :disabled="punching || locatingForPunch" @click="startPunch('ot-out')">
                 <ZapOff :size="18" /> {{ punching ? 'Processing…' : 'End Overtime' }}
               </button>
             </template>
@@ -725,21 +725,38 @@ const punchGreeting = computed(() => {
   return 'Day complete ✓'
 })
 
-const showSelfie  = ref(false)
-const selfieMode  = ref('checkin')
-const punching    = ref(false)
-const lightboxUrl = ref('')
+const showSelfie      = ref(false)
+const selfieMode      = ref('checkin')
+const punching        = ref(false)
+const lightboxUrl     = ref('')
+const locatingForPunch = ref(false)
+const pendingLocation = ref(null)
 
-function startPunch(mode) {
+async function startPunch(mode) {
+  if (locatingForPunch.value) return
+  locatingForPunch.value = true
+  try {
+    pendingLocation.value = await getLocation()
+  } catch (err) {
+    ui.error(err.message)
+    return
+  } finally {
+    locatingForPunch.value = false
+  }
   selfieMode.value = mode
   showSelfie.value = true
 }
 function viewSelfie(url) { lightboxUrl.value = url }
 
 // ── Location ──────────────────────────────────────────────────────────────────
+// Location is mandatory for attendance: rejects (never silently resolves null)
+// so the caller can tell the user exactly what to fix — allow permission, or
+// turn on GPS — and let them retry.
 async function getLocation() {
-  if (!navigator.geolocation) return null
-  return new Promise(resolve => {
+  if (!navigator.geolocation) {
+    throw new Error('Your device/browser does not support location services. Attendance requires location access.')
+  }
+  return new Promise((resolve, reject) => {
     navigator.geolocation.getCurrentPosition(
       async ({ coords }) => {
         const { latitude: lat, longitude: lng } = coords
@@ -757,7 +774,15 @@ async function getLocation() {
         } catch { /* fallback to coords */ }
         resolve({ lat, lng, name })
       },
-      () => resolve(null),
+      (err) => {
+        if (err.code === 1) { // PERMISSION_DENIED
+          reject(new Error('Location permission is required to mark attendance. Please allow location access for this app/site in your browser or device settings, then try again.'))
+        } else if (err.code === 2) { // POSITION_UNAVAILABLE
+          reject(new Error('Could not detect your location. Please turn on GPS / Location Services on your device, then try again.'))
+        } else { // TIMEOUT or unknown
+          reject(new Error('Location request timed out. Please make sure GPS is on and try again.'))
+        }
+      },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     )
   })
@@ -773,32 +798,28 @@ async function onSelfieCapture(blob) {
   showSelfie.value = false
   punching.value   = true
   try {
-    const [locResult, uploadResult] = await Promise.allSettled([
-      getLocation(),
-      (async () => {
-        const now  = new Date()
-        const ts   = now.toISOString().replace(/[:.]/g, '-')
-        const path = `attendance-selfies/${auth.user.id}/${localDateStr()}_${selfieMode.value}_${ts}.jpg`
-        try {
-          const sRef = storageRef(mediaStorage, path)
-          await uploadBytes(sRef, blob, { contentType: 'image/jpeg' })
-          return { url: await getDownloadURL(sRef), now }
-        } catch (fbErr) {
-          console.warn('[Storage] Firebase failed, falling back to R2:', fbErr.code || fbErr.message)
-          try {
-            const url = await uploadToR2(blob, path, 'image/jpeg')
-            return { url, now }
-          } catch (r2Err) {
-            console.error('[Storage] R2 fallback also failed:', r2Err.message)
-            throw new Error('Photo upload failed. Check your connection and try again.')
-          }
-        }
-      })(),
-    ])
+    // Location was already captured (and required) in startPunch() before the
+    // camera opened — attendance never proceeds without it.
+    const loc = pendingLocation.value
+    if (!loc) throw new Error('Location is required to mark attendance. Please try again.')
 
-    const loc = locResult.status === 'fulfilled' ? locResult.value : null
-    if (uploadResult.status === 'rejected') throw uploadResult.reason
-    const { url, now } = uploadResult.value
+    const now  = new Date()
+    const ts   = now.toISOString().replace(/[:.]/g, '-')
+    const path = `attendance-selfies/${auth.user.id}/${localDateStr()}_${selfieMode.value}_${ts}.jpg`
+    let url
+    try {
+      const sRef = storageRef(mediaStorage, path)
+      await uploadBytes(sRef, blob, { contentType: 'image/jpeg' })
+      url = await getDownloadURL(sRef)
+    } catch (fbErr) {
+      console.warn('[Storage] Firebase failed, falling back to R2:', fbErr.code || fbErr.message)
+      try {
+        url = await uploadToR2(blob, path, 'image/jpeg')
+      } catch (r2Err) {
+        console.error('[Storage] R2 fallback also failed:', r2Err.message)
+        throw new Error('Photo upload failed. Check your connection and try again.')
+      }
+    }
     const todayDateStr = localDateStr(now)
 
     if (selfieMode.value === 'checkin') {

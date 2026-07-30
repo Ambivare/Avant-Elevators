@@ -530,8 +530,10 @@ const GOOGLE_DARK_STYLE = []
 const auth = useAuthStore()
 const ui   = useUIStore()
 const { isRoleEnabled: isTrackingRoleEnabled, enabledRoles: trackingEnabledRoles, load: loadTrackingConfig } = useTrackingConfig()
-// Non-technician roles see the admin overview panel; technicians see self-tracking
-const isAdmin = computed(() => auth.user?.role !== 'technician')
+// Field roles (technician, sales) see the self-tracking share screen; everyone
+// else (admin, reception) sees the admin overview panel.
+const SELF_TRACKING_ROLES = ['technician', 'sales']
+const isAdmin = computed(() => !SELF_TRACKING_ROLES.includes(auth.user?.role))
 
 // ── Map config ────────────────────────────────────────────────────────────────
 let mapProvider = 'openstreetmap', googleMapsApiKey = '', mapboxToken = '', hereApiKey = ''

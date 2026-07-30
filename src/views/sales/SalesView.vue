@@ -277,6 +277,14 @@
           <textarea v-model="form.address" class="input" rows="2" placeholder="Address…"></textarea>
         </div>
         <div class="form-group">
+          <label class="label">Developer Company <span style="font-weight:400;font-size:10px;color:var(--ct-muted);">optional</span></label>
+          <input v-model="form.developerCompany" class="input" placeholder="e.g. XYZ Developers Pvt. Ltd." />
+        </div>
+        <div class="form-group form-full">
+          <label class="label">Registered Address <span style="font-weight:400;font-size:10px;color:var(--ct-muted);">optional</span></label>
+          <textarea v-model="form.registeredAddress" class="input" rows="2" placeholder="Registered office address…"></textarea>
+        </div>
+        <div class="form-group">
           <label class="label">Lead Stage</label>
           <select v-model="form.stage" class="input">
             <option v-for="s in stages" :key="s.key" :value="s.key">{{ s.label }}</option>
@@ -990,7 +998,7 @@ const stages = [
 const emptyForm = () => ({
   clientName: '', contactPerson: '', phone: '', email: '',
   clients: [{ name: '', designation: '', phone: '', email: '' }],
-  plotNo: '', sector: '', address: '',
+  plotNo: '', sector: '', address: '', developerCompany: '', registeredAddress: '',
   stage: 'new', priority: 'medium', leadSource: '', leadSourceOther: '',
   leadTypes: [], leadTypeNotes: {},
   lostReason: '',

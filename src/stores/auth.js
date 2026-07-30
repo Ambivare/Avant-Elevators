@@ -23,7 +23,7 @@ export const ROLES = {
   },
   sales: {
     label: 'Sales',
-    tabs: ['dashboard','sales','projects','amc','billing','tasks','complaints','attendance','leave','gallery','inspection','reminders','lifts','tickets','licenses'],
+    tabs: ['dashboard','sales','projects','amc','billing','tasks','complaints','tracking','attendance','leave','gallery','inspection','reminders','lifts','tickets','licenses'],
     canDelete: false,
     canCreateTasks: true,
     canApproveLeave: false,

@@ -339,6 +339,14 @@
             <label class="label">Address</label>
             <textarea v-model="form.address" class="input" rows="2" placeholder="Site address…"></textarea>
           </div>
+          <div class="form-group">
+            <label class="label">Developer Company</label>
+            <input v-model="form.developerCompany" class="input" placeholder="e.g. XYZ Developers Pvt. Ltd." />
+          </div>
+          <div class="form-group form-full">
+            <label class="label">Registered Address</label>
+            <textarea v-model="form.registeredAddress" class="input" rows="2" placeholder="Registered office address…"></textarea>
+          </div>
           <!-- Location / Maps -->
           <div class="form-group form-full">
             <label class="label">Google Maps Link</label>
@@ -1093,7 +1101,7 @@ function getBuildingSummary(project) {
 const defaultForm = () => ({
   projectName: '', fileNumber: '', type: '', status: 'active',
   clients: [{ name: '', designation: '', phone: '', email: '' }],
-  address: '', city: '', value: 0, advance: 0,
+  address: '', developerCompany: '', registeredAddress: '', city: '', value: 0, advance: 0,
   projectManager: '', startDate: '', expectedCompletion: '',
   description: '', discontinuedReason: '',
   locationLink: '', locationLat: null, locationLng: null, locationRadius: 0.5,
