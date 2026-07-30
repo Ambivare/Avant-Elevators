@@ -2125,11 +2125,18 @@ async function loadDefaultChecklist() {
 
 .config-tabs {
   display: flex;
+  flex-wrap: nowrap;
   gap: 4px;
   margin-bottom: 24px;
   border-bottom: 1px solid rgba(255,255,255,0.08);
   padding-bottom: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
+.config-tabs::-webkit-scrollbar { height: 6px; }
+.config-tabs::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 99px; }
 
 .config-tab {
   display: flex;
@@ -2145,6 +2152,8 @@ async function loadDefaultChecklist() {
   cursor: pointer;
   transition: all 0.18s;
   border-radius: 8px 8px 0 0;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .config-tab:hover { color:var(--ct-sub); }
 .config-tab.active { color:var(--ct-accent); border-bottom-color: #6366f1; background: rgba(99,102,241,0.06); }
@@ -2185,6 +2194,7 @@ async function loadDefaultChecklist() {
 [data-theme="light"] .config-section { background: rgba(255,255,255,0.9); border-color: rgba(0,0,0,0.08); }
 [data-theme="light"] .config-tab { color:var(--ct-muted); }
 [data-theme="light"] .config-tab.active { color: #4f46e5; background: rgba(99,102,241,0.06); }
+[data-theme="light"] .config-tabs::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); }
 [data-theme="light"] .section-title { color: #1e293b; }
 [data-theme="light"] .template-tab { border-color: rgba(0,0,0,0.12); color:var(--ct-muted); }
 [data-theme="light"] .template-tab.active { background: rgba(99,102,241,0.1); color: #4f46e5; }
