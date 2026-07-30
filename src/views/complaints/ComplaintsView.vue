@@ -94,16 +94,16 @@
                 <button v-if="c.status !== 'resolved' && c.status !== 'closed'" class="btn-success btn-sm" @click="openComplete(c)" title="Mark Complete" style="white-space:nowrap;padding:4px 8px;">
                   <CheckCircle :size="12" /> Complete
                 </button>
-                <button class="btn-secondary btn-sm" @click="openEdit(c)" title="Edit">
+                <button v-if="authStore.role !== 'technician'" class="btn-secondary btn-sm" @click="openEdit(c)" title="Edit">
                   <Pencil :size="12" />
                 </button>
                 <button class="btn-secondary btn-sm" style="color:#818cf8;" @click="timelineRecord = c; showTimeline = true" title="Activity Timeline">
                   <History :size="12" />
                 </button>
-                <button class="btn-secondary btn-sm" @click="exportComplaintPDF(c)" title="Download Receipt PDF">
+                <button v-if="authStore.role !== 'technician'" class="btn-secondary btn-sm" @click="exportComplaintPDF(c)" title="Download Receipt PDF">
                   <FileText :size="12" />
                 </button>
-                <button class="btn-secondary btn-sm" style="color:#10b981;" @click="openPayment(c)" title="Log Payment Received">
+                <button v-if="authStore.role !== 'technician'" class="btn-secondary btn-sm" style="color:#10b981;" @click="openPayment(c)" title="Log Payment Received">
                   <DollarSign :size="12" />
                 </button>
                 <button v-if="authStore.can('canDelete')" class="btn-danger btn-sm" @click="confirmDel(c)" title="Delete">
@@ -493,8 +493,16 @@
         </div>
       </div>
       <template #footer>
-        <button class="btn-secondary" @click="showViewModal = false">Close</button>
-        <button class="btn-primary" @click="openEdit(viewTarget); showViewModal = false">
+        <button class="btn-secondary" @click="showViewModal = false">Dismiss</button>
+        <template v-if="authStore.role === 'technician'">
+          <button v-if="viewTarget.status !== 'closed'" class="btn-secondary" @click="closeComplaint(viewTarget)">
+            Close
+          </button>
+          <button v-if="viewTarget.status !== 'resolved' && viewTarget.status !== 'closed'" class="btn-primary" @click="openComplete(viewTarget); showViewModal = false">
+            <CheckCircle :size="14" /> Complete
+          </button>
+        </template>
+        <button v-else class="btn-primary" @click="openEdit(viewTarget); showViewModal = false">
           <Pencil :size="14" /> Edit
         </button>
       </template>
@@ -808,6 +816,17 @@ async function saveCompletion() {
     await loadData()
   } catch { ui.error('Failed to save completion') }
   finally { saving.value = false }
+}
+
+async function closeComplaint(c) {
+  if (!c) return
+  try {
+    await update(Collections.COMPLAINTS, c.id, { status: 'closed', closedAt: new Date().toISOString() })
+    await logTimeline(Collections.COMPLAINTS, c.id, 'status_change', `Closed by ${authStore.user?.fullName || 'User'}`)
+    ui.success('Complaint closed')
+    showViewModal.value = false
+    await loadData()
+  } catch { ui.error('Failed to close complaint') }
 }
 
 const editingId = ref(null)

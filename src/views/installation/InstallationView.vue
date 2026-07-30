@@ -87,16 +87,16 @@
                 <button v-if="a.status !== 'completed'" class="btn-success btn-sm" @click="openComplete(a)" title="Mark Complete" style="white-space:nowrap;padding:4px 8px;">
                   <CheckCircle :size="12" /> Complete
                 </button>
-                <button class="btn-secondary btn-sm" @click="openEdit(a)" title="Edit">
+                <button v-if="authStore.role !== 'technician'" class="btn-secondary btn-sm" @click="openEdit(a)" title="Edit">
                   <Pencil :size="12" />
                 </button>
                 <button class="btn-secondary btn-sm" style="color:#818cf8;" @click="timelineRecord = a; showTimeline = true" title="Activity Timeline">
                   <History :size="12" />
                 </button>
-                <button class="btn-secondary btn-sm" @click="exportCertificatePDF(a)" title="Download Completion Certificate">
+                <button v-if="authStore.role !== 'technician'" class="btn-secondary btn-sm" @click="exportCertificatePDF(a)" title="Download Completion Certificate">
                   <FileText :size="12" />
                 </button>
-                <button class="btn-secondary btn-sm" style="color:#10b981;" @click="openPayment(a)" title="Log Payment Received">
+                <button v-if="authStore.role !== 'technician'" class="btn-secondary btn-sm" style="color:#10b981;" @click="openPayment(a)" title="Log Payment Received">
                   <DollarSign :size="12" />
                 </button>
                 <button v-if="authStore.can('canDelete')" class="btn-danger btn-sm" @click="confirmDel(a)" title="Delete">
@@ -369,8 +369,11 @@
       </div>
       <template #footer>
         <button class="btn-secondary" @click="showViewModal = false">Close</button>
-        <button class="btn-primary" @click="openEdit(viewTarget); showViewModal = false">
+        <button v-if="authStore.role !== 'technician'" class="btn-primary" @click="openEdit(viewTarget); showViewModal = false">
           <Pencil :size="14" /> Edit
+        </button>
+        <button v-else-if="viewTarget.status !== 'completed'" class="btn-primary" @click="openComplete(viewTarget); showViewModal = false">
+          <CheckCircle :size="14" /> Complete
         </button>
       </template>
     </AppModal>
