@@ -696,6 +696,70 @@
     </div>
   </div>
 
+  <!-- ── All Photos (employee attendance selfies) ── -->
+  <div v-if="activeTab === 'employee-photos'" class="config-section">
+    <div class="section-header">
+      <Images :size="18" />
+      <div>
+        <div class="section-title">All Photos</div>
+        <div class="section-sub">Attendance selfies grouped by employee. Delete or download individual photos.</div>
+      </div>
+    </div>
+
+    <div v-if="photosLoading" style="padding:24px;text-align:center;color:var(--ct-muted);font-size:13px;">
+      <Loader2 :size="18" style="animation:spin 1s linear infinite;display:inline-block;" /> Loading photos…
+    </div>
+
+    <template v-else-if="!selectedPhotoEmployee">
+      <div v-if="!employeePhotoFolders.length" style="padding:24px;text-align:center;color:var(--ct-muted);font-size:13px;">
+        No attendance photos found.
+      </div>
+      <div v-else style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;">
+        <div
+          v-for="folder in employeePhotoFolders"
+          :key="folder.employeeId"
+          class="glass"
+          style="padding:18px;border-radius:12px;cursor:pointer;text-align:center;transition:border-color .15s;"
+          @click="selectedPhotoEmployee = folder"
+        >
+          <Folder :size="32" style="color:var(--ct-accent);margin-bottom:8px;" />
+          <div style="font-size:13px;font-weight:600;color:var(--ct-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ folder.employeeName }}</div>
+          <div style="font-size:11px;color:var(--ct-muted);margin-top:2px;">{{ folder.photos.length }} photo{{ folder.photos.length === 1 ? '' : 's' }}</div>
+        </div>
+      </div>
+    </template>
+
+    <template v-else>
+      <button class="btn-secondary btn-sm" style="margin-bottom:16px;" @click="selectedPhotoEmployee = null">
+        <ArrowLeft :size="13" /> All Folders
+      </button>
+      <div style="font-size:13px;font-weight:600;color:var(--ct-primary);margin-bottom:12px;">
+        {{ selectedPhotoEmployee.employeeName }} — {{ selectedPhotoEmployee.photos.length }} photo{{ selectedPhotoEmployee.photos.length === 1 ? '' : 's' }}
+      </div>
+      <div v-if="!selectedPhotoEmployee.photos.length" style="padding:24px;text-align:center;color:var(--ct-muted);font-size:13px;">
+        No photos for this employee.
+      </div>
+      <div v-else style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;">
+        <div v-for="photo in selectedPhotoEmployee.photos" :key="photo.recordId + photo.field" class="glass" style="border-radius:12px;overflow:hidden;">
+          <img :src="photo.url" style="width:100%;height:140px;object-fit:cover;display:block;" />
+          <div style="padding:8px 10px;">
+            <div style="font-size:10px;color:var(--ct-muted);">{{ photo.label }}</div>
+            <div style="font-size:11px;color:var(--ct-sub);margin-top:2px;">{{ formatPhotoTimestamp(photo.timestamp) }}</div>
+            <div style="display:flex;gap:6px;margin-top:8px;">
+              <button class="btn-secondary btn-sm" style="flex:1;justify-content:center;" @click="downloadEmployeePhoto(photo)" title="Download">
+                <Download :size="12" />
+              </button>
+              <button class="btn-danger btn-sm" style="flex:1;justify-content:center;" @click="deleteEmployeePhoto(photo)" title="Delete" :disabled="deletingPhotoKeys.has(photo.recordId + photo.field)">
+                <Loader2 v-if="deletingPhotoKeys.has(photo.recordId + photo.field)" :size="12" style="animation:spin 1s linear infinite;" />
+                <Trash2 v-else :size="12" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+
   <!-- ── Nav Tab Visibility ── -->
   <div v-if="activeTab === 'navtabs'" class="config-section">
     <div class="section-header">
@@ -838,12 +902,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import {
   Settings2, Bot, Building2, FileText, Save, Loader2,
   Eye, EyeOff, Upload, LayoutGrid, Map as MapIcon, FileCode, MapPin,
-  Mail as MailIcon, CheckCircle, XCircle, CheckSquare, Plus, Pencil, Trash2
+  Mail as MailIcon, CheckCircle, XCircle, CheckSquare, Plus, Pencil, Trash2,
+  Images, Folder, Download, ArrowLeft
 } from 'lucide-vue-next'
+import { ref as storageRef, deleteObject } from 'firebase/storage'
+import { mediaStorage } from '@/firebase/storage-config'
 import { getAll, create, update, remove } from '@/firebase/firestore'
 import { Collections } from '@/firebase/collections'
 import { useCollection } from '@/composables/useCollection'
@@ -877,6 +944,113 @@ const previewFrame = ref(null)
 const activeTab = ref('llm')
 const activeTemplate = ref('quotation')
 let configDocId = null
+
+// ── All Photos (employee attendance selfies) ──────────────────────────────────
+const photosLoading = ref(false)
+const attendanceRecords = ref([])
+const selectedPhotoEmployee = ref(null)
+let photosLoaded = false
+
+const PHOTO_FIELDS = [
+  { field: 'checkInSelfie',    tsField: 'checkInTime',  label: 'Check-in' },
+  { field: 'checkOutSelfie',   tsField: 'checkOutTime', label: 'Check-out' },
+  { field: 'otPunchInSelfie',  tsField: 'otPunchIn',    label: 'OT Punch-in' },
+  { field: 'otPunchOutSelfie', tsField: 'otPunchOut',   label: 'OT Punch-out' },
+]
+
+const employeePhotoFolders = computed(() => {
+  const byEmployee = new Map()
+  for (const rec of attendanceRecords.value) {
+    if (!rec.employeeId) continue
+    for (const { field, tsField, label } of PHOTO_FIELDS) {
+      const url = rec[field]
+      if (!url) continue
+      if (!byEmployee.has(rec.employeeId)) {
+        byEmployee.set(rec.employeeId, { employeeId: rec.employeeId, employeeName: rec.employeeName || 'Unknown', photos: [] })
+      }
+      byEmployee.get(rec.employeeId).photos.push({
+        recordId: rec.id, field, label, url,
+        timestamp: rec[tsField] || rec.date || null,
+      })
+    }
+  }
+  const folders = [...byEmployee.values()]
+  folders.forEach(f => f.photos.sort((a, b) => {
+    const ta = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : new Date(a.timestamp || 0).getTime()
+    const tb = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : new Date(b.timestamp || 0).getTime()
+    return tb - ta
+  }))
+  return folders.sort((a, b) => a.employeeName.localeCompare(b.employeeName))
+})
+
+async function loadEmployeePhotos() {
+  if (photosLoaded) return
+  photosLoading.value = true
+  try {
+    attendanceRecords.value = await getAll(Collections.ATTENDANCE)
+    photosLoaded = true
+  } catch {
+    ui.error('Failed to load attendance photos.')
+  } finally {
+    photosLoading.value = false
+  }
+}
+
+watch(activeTab, (val) => { if (val === 'employee-photos') loadEmployeePhotos() })
+
+function formatPhotoTimestamp(ts) {
+  if (!ts) return '—'
+  const d = ts?.toDate ? ts.toDate() : new Date(ts)
+  if (isNaN(d.getTime())) return '—'
+  return d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+const deletingPhotoKeys = ref(new Set())
+
+async function deleteEmployeePhoto(photo) {
+  const key = photo.recordId + photo.field
+  if (deletingPhotoKeys.value.has(key)) return
+  deletingPhotoKeys.value = new Set(deletingPhotoKeys.value).add(key)
+  try {
+    try {
+      await deleteObject(storageRef(mediaStorage, photo.url))
+    } catch (e) {
+      // Photo may have been uploaded via the R2 fallback (no delete API available there)
+      // or already removed from storage — still clear the field from the record below.
+      console.warn('[All Photos] Storage delete failed (continuing to clear the field):', e.message)
+    }
+    await update(Collections.ATTENDANCE, photo.recordId, { [photo.field]: null })
+    const rec = attendanceRecords.value.find(r => r.id === photo.recordId)
+    if (rec) rec[photo.field] = null
+    if (selectedPhotoEmployee.value) {
+      selectedPhotoEmployee.value.photos = selectedPhotoEmployee.value.photos.filter(p => p !== photo)
+    }
+    ui.success('Photo deleted')
+  } catch {
+    ui.error('Failed to delete photo')
+  } finally {
+    const next = new Set(deletingPhotoKeys.value)
+    next.delete(key)
+    deletingPhotoKeys.value = next
+  }
+}
+
+async function downloadEmployeePhoto(photo) {
+  try {
+    const res = await fetch(photo.url)
+    const blob = await res.blob()
+    const objUrl = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = objUrl
+    a.download = `${selectedPhotoEmployee.value?.employeeName || 'employee'}_${photo.label}_${photo.recordId}.jpg`.replace(/\s+/g, '_')
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(objUrl), 5000)
+  } catch {
+    ui.error('Failed to download photo')
+  }
+}
 
 // ── Email Settings ────────────────────────────────────────────────────────────
 const showSmtpPass = ref(false)
@@ -1104,6 +1278,7 @@ const tabs = [
   { key: 'navtabs',            label: 'Nav Tab Visibility',  icon: LayoutGrid },
   { key: 'tracking-roles',     label: 'Tracking Roles',      icon: MapPin },
   { key: 'maps',               label: 'Maps',                icon: MapIcon },
+  { key: 'employee-photos',    label: 'All Photos',          icon: Images },
 ]
 
 // All navigable tabs that can be toggled
