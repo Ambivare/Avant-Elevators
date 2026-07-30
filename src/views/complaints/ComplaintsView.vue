@@ -385,9 +385,9 @@
             <input v-model="completeForm.signatoryDesignation" class="input" placeholder="e.g. Building Manager" />
           </div>
         </div>
-        <div class="form-group form-full">
-          <label class="label">Customer Acknowledgement Signature</label>
-          <SignatureCanvas v-model="completeForm.signature" label="Sign here to acknowledge completion" />
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+          <SignatureCanvas v-model="completeForm.arrivalSignature" label="Arrival Signature" border-color="#6366f1" />
+          <SignatureCanvas v-model="completeForm.signature" label="Customer Acknowledgement Signature" border-color="#22c55e" />
         </div>
         <div style="padding:12px 14px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:10px;">
           <div style="font-size:12px;color:var(--ct-muted);">Site Completion Photos</div>
@@ -740,7 +740,7 @@ const showModal = ref(false)
 const showConfirm = ref(false)
 const showCompleteModal = ref(false)
 const completeTarget = ref(null)
-const completeForm = ref({ description: '', arrivalDate: '', arrivalTime: '', completedBy: '', signatoryName: '', signatoryDesignation: '', signature: '', photos: [] })
+const completeForm = ref({ description: '', arrivalDate: '', arrivalTime: '', completedBy: '', signatoryName: '', signatoryDesignation: '', arrivalSignature: '', signature: '', photos: [] })
 
 // True when the logged-in user is a technician assigned to this complaint — locks the Completed By dropdown
 const isCompletedByLocked = computed(() => {
@@ -765,6 +765,7 @@ function openComplete(c) {
     completedBy: locked ? userName : '',
     signatoryName: '',
     signatoryDesignation: '',
+    arrivalSignature: '',
     signature: '',
     photos: [],
   }
@@ -795,6 +796,7 @@ async function saveCompletion() {
       arrivalDate: completeForm.value.arrivalDate,
       arrivalTime: completeForm.value.arrivalTime,
       completedBy: completeForm.value.completedBy,
+      arrivalSignature: completeForm.value.arrivalSignature,
       completionSignature: completeForm.value.signature,
       signatoryName: completeForm.value.signatoryName,
       signatoryDesignation: completeForm.value.signatoryDesignation,

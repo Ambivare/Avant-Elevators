@@ -395,7 +395,10 @@
             <input v-model="completeForm.signatoryDesignation" class="input" placeholder="e.g. Site Engineer" />
           </div>
         </div>
-        <SignatureCanvas v-model="completeForm.signature" label="Customer / Representative Signature" />
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+          <SignatureCanvas v-model="completeForm.technicianSignature" label="Technician Signature" border-color="#6366f1" />
+          <SignatureCanvas v-model="completeForm.signature" label="Customer / Representative Signature" border-color="#22c55e" />
+        </div>
         <div style="padding:12px 14px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:10px;">
           <div style="font-size:12px;color:var(--ct-muted);margin-bottom:8px;">Completion Photos</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
@@ -592,11 +595,11 @@ const showViewModal = ref(false)
 const showConfirm = ref(false)
 const showCompleteModal = ref(false)
 const completeTarget = ref(null)
-const completeForm = ref({ resolutionNote: '', signatoryName: '', signatoryDesignation: '', signature: '', photos: [] })
+const completeForm = ref({ resolutionNote: '', signatoryName: '', signatoryDesignation: '', technicianSignature: '', signature: '', photos: [] })
 
 function openComplete(a) {
   completeTarget.value = a
-  completeForm.value = { resolutionNote: '', signatoryName: '', signatoryDesignation: '', signature: '', photos: [] }
+  completeForm.value = { resolutionNote: '', signatoryName: '', signatoryDesignation: '', technicianSignature: '', signature: '', photos: [] }
   showCompleteModal.value = true
 }
 
@@ -618,6 +621,7 @@ async function saveCompletion() {
       progress: 100,
       completedAt: new Date().toISOString(),
       completionRemarks: completeForm.value.resolutionNote,
+      technicianSignature: completeForm.value.technicianSignature,
       completionSignature: completeForm.value.signature,
       signatoryName: completeForm.value.signatoryName,
       signatoryDesignation: completeForm.value.signatoryDesignation,
@@ -931,7 +935,7 @@ async function exportCertificatePDF(a) {
     y += 2
     const sigW = (W - M * 2 - 6) / 2
     _drawBlackSig(doc, M, y, sigW, 40, 'TECHNICIAN SIGNATURE', a.technicianSignature || null, a.technician || '—', 'Technician')
-    _drawBlackSig(doc, M + sigW + 6, y, sigW, 40, 'AUTHORISED SIGNATORY', null, company.name || '—', 'Authorised Signatory')
+    _drawBlackSig(doc, M + sigW + 6, y, sigW, 40, 'CUSTOMER SIGNATURE', a.completionSignature || null, a.signatoryName || '—', a.signatoryDesignation || '')
     y += 44
 
     await _drawReceiptFooter(doc)

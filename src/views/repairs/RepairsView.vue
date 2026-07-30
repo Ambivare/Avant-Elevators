@@ -402,7 +402,10 @@
             <input v-model="completeForm.signatoryDesignation" class="input" placeholder="e.g. Facility Manager" />
           </div>
         </div>
-        <SignatureCanvas v-model="completeForm.signature" label="Customer Acknowledgement Signature" />
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+          <SignatureCanvas v-model="completeForm.arrivalSignature" label="Arrival Signature" border-color="#6366f1" />
+          <SignatureCanvas v-model="completeForm.signature" label="Customer Acknowledgement Signature" border-color="#22c55e" />
+        </div>
         <div style="padding:12px 14px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:10px;">
           <div style="font-size:12px;color:var(--ct-muted);margin-bottom:8px;">Completion Photos</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
@@ -716,11 +719,11 @@ const showModal = ref(false)
 const showConfirm = ref(false)
 const showCompleteModal = ref(false)
 const completeTarget = ref(null)
-const completeForm = ref({ resolutionNote: '', signatoryName: '', signatoryDesignation: '', signature: '', photos: [] })
+const completeForm = ref({ resolutionNote: '', signatoryName: '', signatoryDesignation: '', arrivalSignature: '', signature: '', photos: [] })
 
 function openComplete(r) {
   completeTarget.value = r
-  completeForm.value = { resolutionNote: '', signatoryName: '', signatoryDesignation: '', signature: '', photos: [] }
+  completeForm.value = { resolutionNote: '', signatoryName: '', signatoryDesignation: '', arrivalSignature: '', signature: '', photos: [] }
   showCompleteModal.value = true
 }
 
@@ -741,6 +744,7 @@ async function saveCompletion() {
       status: 'completed',
       completedAt: new Date().toISOString(),
       completionNote: completeForm.value.resolutionNote,
+      arrivalSignature: completeForm.value.arrivalSignature,
       completionSignature: completeForm.value.signature,
       signatoryName: completeForm.value.signatoryName,
       signatoryDesignation: completeForm.value.signatoryDesignation,
