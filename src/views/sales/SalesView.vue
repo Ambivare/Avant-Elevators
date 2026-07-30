@@ -31,6 +31,9 @@
         <button class="btn-secondary" @click="triggerLeadsExport('pdf')">
           <FileText :size="15" /> PDF
         </button>
+        <button class="btn-secondary" @click="showImportModal = true">
+          <Upload :size="15" /> Bulk Import
+        </button>
         <button class="btn-primary" @click="openAdd">
           <Plus :size="16" /> Add Lead
         </button>
@@ -720,13 +723,118 @@
         </button>
       </template>
     </AppModal>
+
+    <!-- Bulk Import Modal -->
+    <AppModal v-model="showImportModal" title="Bulk Import Leads" subtitle="Import multiple leads via Excel" width="640px">
+      <div v-if="!importPreview.length">
+        <div class="glass" style="padding:20px;border-radius:12px;margin-bottom:16px;border-color:rgba(99,102,241,0.2);">
+          <div style="font-size:13px;color:var(--ct-accent);font-weight:600;margin-bottom:10px;">
+            <FileSpreadsheet :size="16" style="display:inline;margin-right:6px;vertical-align:-3px;" />
+            Excel Column Headers
+          </div>
+          <div style="font-size:12px;color:var(--ct-sub);line-height:1.9;margin:0;">
+            <span style="color:#f87171;font-weight:600;">* Required:</span>
+            <code style="background:rgba(239,68,68,0.1);padding:2px 6px;border-radius:4px;font-size:11px;color:#f87171;margin:0 4px;">clientName</code>
+            <code style="background:rgba(239,68,68,0.1);padding:2px 6px;border-radius:4px;font-size:11px;color:#f87171;margin:0 4px;">phone</code>
+            <br/>
+            <span style="color:var(--ct-muted);font-weight:600;">Optional:</span>
+            <code style="background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;font-size:11px;color:var(--ct-accent);margin:0 2px;">contactPerson</code>
+            <code style="background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;font-size:11px;color:var(--ct-accent);margin:0 2px;">email</code>
+            <code style="background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;font-size:11px;color:var(--ct-accent);margin:0 2px;">plotNo</code>
+            <code style="background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;font-size:11px;color:var(--ct-accent);margin:0 2px;">sector</code>
+            <code style="background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;font-size:11px;color:var(--ct-accent);margin:0 2px;">address</code>
+            <code style="background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;font-size:11px;color:var(--ct-accent);margin:0 2px;">stage</code>
+            <code style="background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;font-size:11px;color:var(--ct-accent);margin:0 2px;">priority</code>
+            <code style="background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;font-size:11px;color:var(--ct-accent);margin:0 2px;">leadSource</code>
+            <code style="background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;font-size:11px;color:var(--ct-accent);margin:0 2px;">elevatorType</code>
+            <code style="background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;font-size:11px;color:var(--ct-accent);margin:0 2px;">elevatorQty</code>
+            <code style="background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;font-size:11px;color:var(--ct-accent);margin:0 2px;">elevatorFloors</code>
+            <code style="background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;font-size:11px;color:var(--ct-accent);margin:0 2px;">elevatorLoadCapacity</code>
+            <code style="background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;font-size:11px;color:var(--ct-accent);margin:0 2px;">value</code>
+            <code style="background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;font-size:11px;color:var(--ct-accent);margin:0 2px;">probability</code>
+            <code style="background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;font-size:11px;color:var(--ct-accent);margin:0 2px;">assignedTo</code>
+            <code style="background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;font-size:11px;color:var(--ct-accent);margin:0 2px;">nextFollowUp</code>
+            <code style="background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;font-size:11px;color:var(--ct-accent);margin:0 2px;">expectedCloseDate</code>
+            <code style="background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;font-size:11px;color:var(--ct-accent);margin:0 2px;">notes</code>
+          </div>
+        </div>
+        <div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.15);border-radius:10px;padding:14px;margin-bottom:16px;">
+          <div style="font-size:12px;color:#fbbf24;font-weight:600;margin-bottom:6px;">Notes:</div>
+          <ul style="font-size:12px;color:var(--ct-sub);margin:0;padding-left:18px;line-height:1.8;">
+            <li><span style="color:#f87171;">clientName and phone are required</span> — rows missing these are skipped</li>
+            <li>Date format: YYYY-MM-DD</li>
+            <li>Stage: new | contacted | qualified | proposal | negotiation | won | lost</li>
+            <li>Priority: low | medium | high</li>
+            <li>Lead Source: referral | website | cold-call | exhibition | social-media | existing-client | justdial | indiamart | direct-visit | others</li>
+            <li>Elevator Type: passenger | goods | hospital | car-elevator | dumbwaiter | hydraulic | mrl | home-lift | observation | service | escalator | car-parking | amc | modernisation | other</li>
+            <li>First row must be the header row — download the sample to get started</li>
+          </ul>
+        </div>
+        <div v-if="importError" style="color:#f87171;font-size:12px;padding:10px 14px;background:rgba(239,68,68,0.08);border-radius:10px;border:1px solid rgba(239,68,68,0.18);margin-bottom:12px;">{{ importError }}</div>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+          <button class="btn-secondary" @click="downloadSampleExcel">
+            <FileSpreadsheet :size="14" /> Download Sample Excel
+          </button>
+          <label class="btn-primary" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+            <Upload :size="14" /> Choose Excel / CSV File
+            <input type="file" accept=".xlsx,.xls,.csv" style="display:none;" @change="handleImportFile" />
+          </label>
+        </div>
+      </div>
+
+      <!-- Preview -->
+      <div v-else>
+        <div style="font-size:13px;font-weight:600;color:var(--ct-primary);margin-bottom:10px;">
+          Preview — {{ importPreview.length }} lead(s) ready to import
+        </div>
+        <div style="max-height:300px;overflow-y:auto;border:1px solid rgba(255,255,255,0.08);border-radius:10px;">
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead>
+              <tr style="background:rgba(255,255,255,0.04);position:sticky;top:0;">
+                <th style="padding:8px 12px;text-align:left;color:var(--ct-muted);font-weight:600;">#</th>
+                <th style="padding:8px 12px;text-align:left;color:var(--ct-muted);font-weight:600;">Client</th>
+                <th style="padding:8px 12px;text-align:left;color:var(--ct-muted);font-weight:600;">Contact</th>
+                <th style="padding:8px 12px;text-align:left;color:var(--ct-muted);font-weight:600;">Stage</th>
+                <th style="padding:8px 12px;text-align:left;color:var(--ct-muted);font-weight:600;">Priority</th>
+                <th style="padding:8px 12px;text-align:left;color:var(--ct-muted);font-weight:600;">Elevator Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(row, i) in importPreview" :key="i" style="border-top:1px solid rgba(255,255,255,0.05);">
+                <td style="padding:7px 12px;color:var(--ct-muted);">{{ i + 1 }}</td>
+                <td style="padding:7px 12px;color:var(--ct-primary);font-weight:500;">{{ row.clientName }}</td>
+                <td style="padding:7px 12px;color:var(--ct-sub);">{{ row.contactPerson || row.phone || '—' }}</td>
+                <td style="padding:7px 12px;color:var(--ct-sub);">{{ row.stage || '—' }}</td>
+                <td style="padding:7px 12px;color:var(--ct-sub);">{{ row.priority || '—' }}</td>
+                <td style="padding:7px 12px;color:var(--ct-sub);">{{ row.elevatorType || '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="margin-top:12px;font-size:12px;color:var(--ct-muted);">
+          Review the data above before importing. This cannot be undone easily.
+        </div>
+      </div>
+
+      <template #footer>
+        <button class="btn-secondary" @click="importPreview = []; showImportModal = false">Cancel</button>
+        <button v-if="importPreview.length" class="btn-secondary" @click="importPreview = []">
+          ← Back
+        </button>
+        <button v-if="importPreview.length" class="btn-primary" @click="doLeadsImport" :disabled="importing">
+          <Loader2 v-if="importing" :size="14" style="animation:spin 1s linear infinite;" />
+          <Upload v-else :size="14" />
+          {{ importing ? 'Importing…' : `Import ${importPreview.length} Leads` }}
+        </button>
+      </template>
+    </AppModal>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { TrendingUp, Plus, Search, Pencil, Trash2, Kanban, List, FolderOpen, ArrowRight, CheckCircle2, CheckCircle, FileSpreadsheet, FileText, AlertTriangle, ChevronDown, Save, History, FileDown, CheckSquare2, Square } from 'lucide-vue-next'
+import { TrendingUp, Plus, Search, Pencil, Trash2, Kanban, List, FolderOpen, ArrowRight, CheckCircle2, CheckCircle, FileSpreadsheet, FileText, AlertTriangle, ChevronDown, Save, History, FileDown, CheckSquare2, Square, Upload, Loader2 } from 'lucide-vue-next'
 import DataTable from '@/components/ui/DataTable.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
@@ -1402,6 +1510,124 @@ function formatDate(d) {
   const dd = String(dt.getDate()).padStart(2, '0')
   const mm = String(dt.getMonth() + 1).padStart(2, '0')
   return `${dd}/${mm}/${dt.getFullYear()}`
+}
+
+// ── Bulk Import ─────────────────────────────────────────────────────
+const showImportModal = ref(false)
+const importPreview = ref([])
+const importError = ref('')
+const importing = ref(false)
+
+function handleImportFile(e) {
+  const file = e.target.files[0]
+  if (!file) return
+  importError.value = ''
+  importPreview.value = []
+  const reader = new FileReader()
+  reader.onload = (ev) => {
+    try {
+      const wb = XLSX.read(ev.target.result, { type: 'array' })
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' })
+      const valid = []
+      let skipped = 0
+      rows.forEach(row => {
+        const clientName = String(row.clientName || row['Client Name'] || row['client_name'] || '').trim()
+        const phone      = String(row.phone      || row['Phone']      || row['client_phone'] || '').trim()
+        if (!clientName || !phone) { skipped++; return }
+        const contactPerson = String(row.contactPerson || row['Contact Person'] || '').trim()
+        const elevatorType  = String(row.elevatorType  || row['Elevator Type']  || '').trim()
+        const elevatorQty   = Number(row.elevatorQty || row['Elevator Qty'] || 1)
+        const elevatorFloors = String(row.elevatorFloors || row['Elevator Floors'] || '').trim()
+        const elevatorLoadCapacity = String(row.elevatorLoadCapacity || row['Elevator Load Capacity'] || '').trim()
+        const email = String(row.email || row['Email'] || '').trim()
+        valid.push({
+          clientName,
+          contactPerson,
+          phone,
+          email,
+          clients: [{ name: contactPerson || clientName, designation: '', phone, email }],
+          plotNo:   String(row.plotNo   || row['Plot No']   || '').trim(),
+          sector:   String(row.sector   || row['Sector']    || '').trim(),
+          address:  String(row.address  || row['Address']   || '').trim(),
+          stage:    String(row.stage    || row['Stage']     || 'new').trim(),
+          priority: String(row.priority || row['Priority']  || 'medium').trim(),
+          leadSource:      String(row.leadSource || row['Lead Source'] || '').trim(),
+          leadSourceOther: '',
+          leadTypes: [], leadTypeNotes: {},
+          lostReason: '',
+          multiRequirements: false,
+          elevatorType, elevatorTypeOther: '', passengerSubType: '', parkingSubType: '', parkingSubTypeOther: '',
+          elevatorQty, elevatorFloors, elevatorLoadCapacity, elevatorSpecialNote: '',
+          requirements: [{ elevatorType, elevatorTypeOther: '', passengerSubType: '', parkingSubType: '', parkingSubTypeOther: '', qty: elevatorQty, floors: elevatorFloors, loadCapacity: elevatorLoadCapacity, notes: '' }],
+          currentlyManagedByOther: false,
+          currentCompanyName: '',
+          currentContractEndDate: '',
+          value:       Number(row.value       || row['Value']       || 0),
+          assignedTo:  String(row.assignedTo  || row['Assigned To'] || '').trim(),
+          nextFollowUp: String(row.nextFollowUp || row['Next Follow Up'] || '').trim(),
+          notes:        String(row.notes        || row['Notes']        || '').trim(),
+          expectedCloseDate: String(row.expectedCloseDate || row['Expected Close Date'] || '').trim(),
+          probability: Number(row.probability || row['Probability'] || 50),
+        })
+      })
+      if (!valid.length) { importError.value = `No valid rows found. ${skipped} row(s) skipped — clientName and phone are both required.`; return }
+      importPreview.value = valid
+      if (skipped) ui.warning(`${skipped} row(s) skipped — missing clientName or phone.`)
+    } catch (err) {
+      importError.value = 'Failed to parse file: ' + err.message
+    }
+  }
+  reader.readAsArrayBuffer(file)
+  e.target.value = ''
+}
+
+async function doLeadsImport() {
+  importing.value = true
+  let success = 0
+  for (const row of importPreview.value) {
+    try {
+      await add({
+        ...row,
+        createdById: currentUserId.value,
+        createdByName: currentUserName.value,
+      }, `Imported lead ${row.clientName}`)
+      success++
+    } catch { /* skip failed rows */ }
+  }
+  importing.value = false
+  ui.success(`Imported ${success} of ${importPreview.value.length} leads.`)
+  importPreview.value = []
+  showImportModal.value = false
+}
+
+async function downloadSampleExcel() {
+  const headers = [
+    'clientName', 'phone', 'contactPerson', 'email',
+    'stage', 'priority', 'leadSource',
+    'plotNo', 'sector', 'address',
+    'elevatorType', 'elevatorQty', 'elevatorFloors', 'elevatorLoadCapacity',
+    'value', 'probability', 'assignedTo', 'nextFollowUp', 'expectedCloseDate', 'notes',
+  ]
+  const sample = [
+    'Sunrise Towers', '+91 98765 43210', 'Rajesh Sharma', 'rajesh@example.com',
+    'new', 'medium', 'referral',
+    '12', 'Sector 45', '12 MG Road, Andheri West',
+    'passenger', 2, 10, '630 kg',
+    850000, 50, 'Anil Kumar', '2025-02-15', '2025-06-30', 'Interested in AMC bundle',
+  ]
+  const wb = XLSX.utils.book_new()
+  const ws = XLSX.utils.aoa_to_sheet([headers, sample])
+
+  ws['!cols'] = headers.map((h, i) => ({ wch: [20, 16, 18, 24, 12, 10, 16, 10, 14, 28, 14, 10, 12, 16, 10, 10, 16, 14, 16, 24][i] || 14 }))
+
+  headers.forEach((_, c) => {
+    const cell = XLSX.utils.encode_cell({ r: 0, c })
+    if (ws[cell]) ws[cell].s = { font: { bold: true } }
+  })
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Leads')
+  await saveExcel(wb, 'Avant_Leads_Import_Sample.xlsx', ui)
 }
 </script>
 
