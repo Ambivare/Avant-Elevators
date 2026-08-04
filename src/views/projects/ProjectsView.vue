@@ -1160,6 +1160,15 @@ function openEdit(project, fromLead = false) {
   // Ensure clients array is present (backward compat with old clientName field)
   if (!form.value.clients || !form.value.clients.length) {
     form.value.clients = [{ name: project.clientName || '', designation: '', phone: project.clientPhone || '', email: project.clientEmail || '' }]
+  } else if (!form.value.clients[0]?.name && project.clientName) {
+    // clients[0] exists but is blank while the denormalized top-level fields
+    // (shown on the card) have real data — backfill so Edit isn't empty.
+    form.value.clients[0] = {
+      name: project.clientName || '',
+      designation: form.value.clients[0]?.designation || '',
+      phone: project.clientPhone || form.value.clients[0]?.phone || '',
+      email: project.clientEmail || form.value.clients[0]?.email || '',
+    }
   }
   numBuildings.value = form.value.buildings.length
   wizardStep.value = 1

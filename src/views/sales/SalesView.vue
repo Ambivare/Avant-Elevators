@@ -1206,7 +1206,16 @@ function openEdit(row) {
   form.value = { ...base, ...row }
   // Ensure additional contacts array exists
   if (!form.value.clients || !form.value.clients.length) {
-    form.value.clients = [{ name: '', designation: '', phone: '', email: '' }]
+    form.value.clients = [{ name: row.contactPerson || row.clientName || '', designation: '', phone: row.phone || '', email: row.email || '' }]
+  } else if (!form.value.clients[0]?.name && (row.contactPerson || row.clientName)) {
+    // clients[0] exists but is blank while the denormalized top-level fields
+    // (shown on the card) have real data — backfill so Edit isn't empty.
+    form.value.clients[0] = {
+      name: row.contactPerson || row.clientName || '',
+      designation: form.value.clients[0]?.designation || '',
+      phone: row.phone || form.value.clients[0]?.phone || '',
+      email: row.email || form.value.clients[0]?.email || '',
+    }
   }
   // Backward compat: if no requirements array, seed from single elevatorType field
   if (!form.value.requirements || !form.value.requirements.length) {
