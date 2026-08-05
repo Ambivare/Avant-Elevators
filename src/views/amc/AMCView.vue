@@ -2044,10 +2044,10 @@ watch([() => ui.pendingAutoOpen, contracts], () => {
 })
 
 // ── Computed ─────────────────────────────────────────────────────────
-const activeContracts = computed(() => contracts.value.filter(c => effectiveStatus(c) === 'active'))
-const expiredContracts = computed(() => contracts.value.filter(c => effectiveStatus(c) === 'expired'))
-const expiringContracts = computed(() => contracts.value.filter(c => isExpiring(c)))
-const totalContractValue = computed(() => contracts.value.reduce((sum, c) => sum + (Number(c.contractValue) || 0), 0))
+const activeContracts = computed(() => visibleContracts.value.filter(c => effectiveStatus(c) === 'active'))
+const expiredContracts = computed(() => visibleContracts.value.filter(c => effectiveStatus(c) === 'expired'))
+const expiringContracts = computed(() => visibleContracts.value.filter(c => isExpiring(c)))
+const totalContractValue = computed(() => visibleContracts.value.reduce((sum, c) => sum + (Number(c.contractValue) || 0), 0))
 
 // ── Contracts Filter ──────────────────────────────────────────────────
 const contractSearch = ref('')
@@ -3414,7 +3414,7 @@ async function savePayment() {
 // ── Bulk Export ───────────────────────────────────────────────────────────────
 function triggerExport(type) {
   showExportDialog({
-    rows: contracts.value,
+    rows: visibleContracts.value,
     dateField: 'startDate',
     columns: ['Contract #', 'Client', 'Type', 'Start Date', 'End Date', 'Frequency', 'Value', 'Status'],
     title: 'AMC Contracts Report',

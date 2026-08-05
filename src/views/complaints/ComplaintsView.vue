@@ -862,9 +862,20 @@ const form = ref(defaultForm())
 const selectedProject = computed(() => projects.value.find(p => p.id === form.value.projectId) || null)
 
 // ── Computed ──────────────────────────────────────────────────────────────────
+// Technicians only ever see complaints assigned to them — every count/list below
+// derives from this, so tab counts and stats can't leak other technicians' work.
+const visibleComplaints = computed(() => {
+  if (authStore.role !== 'technician') return complaints.value
+  const myName = (authStore.user?.fullName || authStore.user?.username || '').toLowerCase()
+  return complaints.value.filter(c => {
+    const assigned = (c.assignedTechnicians && c.assignedTechnicians.length ? c.assignedTechnicians : [c.assignedTo]).filter(Boolean).map(t => t.toLowerCase())
+    return assigned.includes(myName)
+  })
+})
+
 const filteredComplaints = computed(() => {
   const q = search.value.toLowerCase()
-  return complaints.value.filter(c => {
+  return visibleComplaints.value.filter(c => {
     const matchTab = !activeTab.value || c.status === activeTab.value
     const projectName = c.projectId ? (projects.value.find(p => p.id === c.projectId)?.projectName || '') : ''
     const matchSearch = !q ||
@@ -879,11 +890,11 @@ const filteredComplaints = computed(() => {
   })
 })
 
-const openCount = computed(() => complaints.value.filter(c => c.status === 'open').length)
+const openCount = computed(() => visibleComplaints.value.filter(c => c.status === 'open').length)
 
 function tabCount(val) {
   if (!val) return 0
-  return complaints.value.filter(c => c.status === val).length
+  return visibleComplaints.value.filter(c => c.status === val).length
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -1194,7 +1205,7 @@ async function exportComplaintPDF(c) {
 // ── Bulk Export ───────────────────────────────────────────────────────────────
 function triggerExport(type) {
   showExportDialog({
-    rows: complaints.value,
+    rows: visibleComplaints.value,
     dateField: 'scheduledDate',
     columns: ['Complaint #', 'Client', 'Phone', 'Issue Type', 'Priority', 'Status', 'Assigned To', 'Date'],
     title: 'Complaints Report',

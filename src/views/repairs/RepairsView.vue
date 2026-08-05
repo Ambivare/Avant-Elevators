@@ -796,9 +796,20 @@ const form = ref(defaultForm())
 const selectedProject = computed(() => projects.value.find(p => p.id === form.value.projectId) || null)
 
 // ── Computed ──────────────────────────────────────────────────────────────────
+// Technicians only ever see repairs assigned to them — list, search, and export
+// all derive from this so nothing leaks other technicians' work.
+const visibleRepairs = computed(() => {
+  if (authStore.role !== 'technician') return repairs.value
+  const myName = (authStore.user?.fullName || authStore.user?.username || '').toLowerCase()
+  return repairs.value.filter(r => {
+    const assigned = (r.technicians && r.technicians.length ? r.technicians : [r.technician]).filter(Boolean).map(t => t.toLowerCase())
+    return assigned.includes(myName)
+  })
+})
+
 const filteredRepairs = computed(() => {
   const q = search.value.toLowerCase()
-  return repairs.value.filter(r => {
+  return visibleRepairs.value.filter(r => {
     const matchSearch = !q ||
       (r.clientName || '').toLowerCase().includes(q) ||
       projectName(r.projectId).toLowerCase().includes(q) ||
@@ -1176,7 +1187,7 @@ async function exportRepairPDF(r) {
 // ── Bulk Export ───────────────────────────────────────────────────────────────
 function triggerExport(type) {
   showExportDialog({
-    rows: repairs.value,
+    rows: visibleRepairs.value,
     dateField: 'repairDate',
     columns: ['Client / Project', 'Repair Type', 'Technician', 'Date', 'Status', 'Total Cost'],
     title: 'Repair Records Report',

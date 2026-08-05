@@ -671,9 +671,20 @@ const form = ref(defaultForm())
 const selectedProject = computed(() => projects.value.find(p => p.id === form.value.projectId) || null)
 
 // ── Computed ──────────────────────────────────────────────────────────────────
+// Technicians only ever see modernisation jobs assigned to them — list, search,
+// and export all derive from this so nothing leaks other technicians' work.
+const visibleActivities = computed(() => {
+  if (authStore.role !== 'technician') return activities.value
+  const myName = (authStore.user?.fullName || authStore.user?.username || '').toLowerCase()
+  return activities.value.filter(a => {
+    const assigned = (a.technicians && a.technicians.length ? a.technicians : [a.technician]).filter(Boolean).map(t => t.toLowerCase())
+    return assigned.includes(myName)
+  })
+})
+
 const filteredActivities = computed(() => {
   const q = search.value.toLowerCase()
-  return activities.value.filter(a => {
+  return visibleActivities.value.filter(a => {
     const pName = projectName(a.projectId).toLowerCase()
     const matchSearch = !q || pName.includes(q) || (a.technician || '').toLowerCase().includes(q)
     const matchProject = !filterProject.value || a.projectId === filterProject.value
@@ -1025,7 +1036,7 @@ async function exportCertificatePDF(a) {
 // ── Bulk Export ───────────────────────────────────────────────────────────────
 function triggerExport(type) {
   showExportDialog({
-    rows: activities.value,
+    rows: visibleActivities.value,
     dateField: 'activityDate',
     columns: ['Project', 'Lift #', 'Date', 'Technician', 'Status', 'Progress', 'Work Done', 'Remarks'],
     title: 'Modernisation Activities Report',
