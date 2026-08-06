@@ -321,12 +321,12 @@
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
                 <SignatureCanvas
                   v-model="form.arrivalSignature"
-                  label="Representative Signature (Arrival)"
+                  label="Arrival Signature (Client)"
                   border-color="#6366f1"
                 />
                 <SignatureCanvas
                   v-model="form.completionSignature"
-                  label="Representative Signature (Completion)"
+                  label="Resolution Signature (Service Engineer)"
                   border-color="#22c55e"
                 />
               </div>
@@ -403,8 +403,8 @@
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
-          <SignatureCanvas v-model="completeForm.arrivalSignature" label="Arrival Signature" border-color="#6366f1" />
-          <SignatureCanvas v-model="completeForm.signature" label="Customer Acknowledgement Signature" border-color="#22c55e" />
+          <SignatureCanvas v-model="completeForm.arrivalSignature" label="Arrival Signature (Client)" border-color="#6366f1" />
+          <SignatureCanvas v-model="completeForm.signature" label="Resolution Signature (Service Engineer)" border-color="#22c55e" />
         </div>
         <div style="padding:12px 14px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:10px;">
           <div style="font-size:12px;color:var(--ct-muted);margin-bottom:8px;">Completion Photos</div>
@@ -486,9 +486,15 @@
             <img v-for="(ph,i) in viewTarget.completionPhotos" :key="i" :src="ph" style="width:100px;height:100px;object-fit:cover;border-radius:8px;border:1px solid rgba(255,255,255,0.1);" />
           </div>
         </div>
-        <div v-if="viewTarget.completionSignature" style="margin-top:4px;">
-          <div class="label" style="margin-bottom:6px;">Customer Signature</div>
-          <img :src="viewTarget.completionSignature" style="max-height:80px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);" />
+        <div v-if="viewTarget.arrivalSignature || viewTarget.completionSignature" style="margin-top:4px;display:flex;gap:16px;flex-wrap:wrap;">
+          <div v-if="viewTarget.arrivalSignature">
+            <div class="label" style="margin-bottom:6px;">Arrival Signature (Client)</div>
+            <img :src="viewTarget.arrivalSignature" style="max-height:80px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);" />
+          </div>
+          <div v-if="viewTarget.completionSignature">
+            <div class="label" style="margin-bottom:6px;">Resolution Signature (Service Engineer)</div>
+            <img :src="viewTarget.completionSignature" style="max-height:80px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);" />
+          </div>
         </div>
       </div>
       <template #footer>
@@ -1170,8 +1176,8 @@ async function exportRepairPDF(r) {
       y = _sectionLabel(doc, 'Signatures', y, _C.greyText)
       y += 2
       const sigW = (W - M * 2 - 6) / 2
-      _drawBlackSig(doc, M, y, sigW, 40, 'ARRIVAL SIGNATURE', r.arrivalSignature, r.technician || '—', 'Technician')
-      _drawBlackSig(doc, M + sigW + 6, y, sigW, 40, 'COMPLETION SIGNATURE', r.completionSignature, r.completedBy || '—', '')
+      _drawBlackSig(doc, M, y, sigW, 40, 'ARRIVAL SIGNATURE', r.arrivalSignature, r.signatoryName || '—', r.signatoryDesignation || 'Client')
+      _drawBlackSig(doc, M + sigW + 6, y, sigW, 40, 'RESOLUTION SIGNATURE', r.completionSignature, r.technician || (r.technicians || [])[0] || '—', 'Service Engineer')
       y += 44
     }
 

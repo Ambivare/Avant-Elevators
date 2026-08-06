@@ -399,8 +399,8 @@
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
-          <SignatureCanvas v-model="completeForm.technicianSignature" label="Technician Signature" border-color="#6366f1" />
-          <SignatureCanvas v-model="completeForm.signature" label="Customer / Representative Signature" border-color="#22c55e" />
+          <SignatureCanvas v-model="completeForm.signature" label="Arrival Signature (Client)" border-color="#6366f1" />
+          <SignatureCanvas v-model="completeForm.technicianSignature" label="Resolution Signature (Service Engineer)" border-color="#22c55e" />
         </div>
         <div style="padding:12px 14px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:10px;">
           <div style="font-size:12px;color:var(--ct-muted);margin-bottom:8px;">Completion Photos</div>
@@ -948,8 +948,8 @@ async function exportCertificatePDF(a) {
     y = _sectionLabel(doc, 'Signatures', y, _C.greyText)
     y += 2
     const sigW = (W - M * 2 - 6) / 2
-    _drawBlackSig(doc, M, y, sigW, 40, 'TECHNICIAN SIGNATURE', a.technicianSignature || null, a.technician || '—', 'Technician')
-    _drawBlackSig(doc, M + sigW + 6, y, sigW, 40, 'CUSTOMER SIGNATURE', a.completionSignature || null, a.signatoryName || '—', a.signatoryDesignation || '')
+    _drawBlackSig(doc, M, y, sigW, 40, 'ARRIVAL SIGNATURE', a.completionSignature || null, a.signatoryName || '—', a.signatoryDesignation || 'Client')
+    _drawBlackSig(doc, M + sigW + 6, y, sigW, 40, 'RESOLUTION SIGNATURE', a.technicianSignature || null, a.technician || '—', 'Service Engineer')
     y += 44
 
     await _drawReceiptFooter(doc)
