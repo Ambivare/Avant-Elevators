@@ -177,6 +177,10 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
 <style scoped>
 .selfie-overlay {
   position: fixed; inset: 0; z-index: 1100;
+  /* 100svh = height when mobile browser chrome (Safari's toolbar, etc.) is fully
+     shown — guarantees the overlay (and the controls pinned to its bottom) never
+     render underneath/behind that chrome, unlike 100vh or the default inset:0 sizing. */
+  height: 100svh;
   background: rgba(0,0,0,0.88); backdrop-filter: blur(10px);
   display: flex; align-items: flex-end; justify-content: center;
 }
@@ -187,7 +191,7 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
   background: #0d0d1a; border: 1px solid rgba(99,102,241,0.2);
   border-radius: 28px 28px 0 0; width: 100%; max-width: 420px;
   overflow: hidden; display: flex; flex-direction: column;
-  max-height: 95dvh; box-shadow: 0 -20px 60px rgba(0,0,0,0.7);
+  max-height: 95svh; box-shadow: 0 -20px 60px rgba(0,0,0,0.7);
 }
 @media (min-width: 600px) { .selfie-shell { border-radius: 24px; max-height: 90vh; } }
 .selfie-header {
@@ -204,8 +208,15 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
 }
 .selfie-close:hover { background: rgba(239,68,68,0.15); color: #f87171; }
 .selfie-viewport {
-  position: relative; width: 100%; aspect-ratio: 3/4;
-  background: #000; overflow: hidden; flex-shrink: 0;
+  position: relative; width: 100%;
+  /* aspect-ratio is a sizing preference, not a hard floor: flex-shrink + min-height:0
+     let this shrink below it on short viewports (iPhone Safari with its address/tab
+     bar chrome eating vertical space), so the header and controls below — which hold
+     the actual capture button — are never pushed past the shell's max-height and
+     clipped by its overflow:hidden. */
+  flex: 1 1 auto; min-height: 0;
+  aspect-ratio: 3/4;
+  background: #000; overflow: hidden;
 }
 .selfie-video, .selfie-preview-img {
   width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1);
@@ -245,7 +256,8 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
   font-size: 13px; font-weight: 600; color: #4ade80; backdrop-filter: blur(6px);
 }
 .selfie-controls {
-  padding: 20px 24px 28px; display: flex; flex-direction: column;
+  padding: 20px 24px calc(28px + env(safe-area-inset-bottom, 0px));
+  display: flex; flex-direction: column;
   align-items: center; gap: 12px; flex-shrink: 0;
 }
 .capture-hint { font-size: 12px; color: var(--ct-muted, #64748b); }
