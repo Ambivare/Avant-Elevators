@@ -851,7 +851,7 @@
         <!-- Signatory details -->
         <div style="grid-column:1/-1;border-top:1px solid rgba(255,255,255,0.07);padding-top:16px;margin-top:4px;">
           <div style="font-size:12px;font-weight:600;color:var(--ct-accent);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;">
-            Customer Acknowledgement
+            Signatures
           </div>
           <div class="form-grid" style="margin-bottom:0;">
             <div class="form-group">
@@ -865,15 +865,15 @@
           </div>
         </div>
 
-        <!-- E-Signature -->
-        <div class="form-group form-full">
-          <label class="label">Customer Signature</label>
-          <SignatureCanvas v-model="logForm.signature" />
+        <!-- E-Signatures -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;" class="form-full">
+          <SignatureCanvas v-model="logForm.signature" label="Arrival Signature (Client)" border-color="#6366f1" />
+          <SignatureCanvas v-model="logForm.technicianSignature" label="Resolution Signature (Service Engineer)" border-color="#22c55e" />
         </div>
 
-        <!-- Optional: Upload signature image instead of drawing -->
+        <!-- Optional: Upload signature image instead of drawing (client signature only) -->
         <div class="form-group form-full" style="margin-top:4px;">
-          <label class="label" style="margin-bottom:6px;">Or Upload Signature Image <span style="font-size:10px;color:var(--ct-muted);font-weight:400;">(optional)</span></label>
+          <label class="label" style="margin-bottom:6px;">Or Upload Client Signature Image <span style="font-size:10px;color:var(--ct-muted);font-weight:400;">(optional)</span></label>
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
             <label style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);font-size:12px;color:var(--ct-secondary);background:rgba(255,255,255,0.04);">
               <Upload :size="13" /> Browse Image
@@ -2627,7 +2627,7 @@ const maintenanceMonths = computed(() => {
 
 const showLogModal = ref(false)
 const editingLog = ref(null)
-const defaultLogForm = () => ({ month: new Date().getMonth() + 1, year: currentYear, date: new Date().toISOString().split('T')[0], technician: '', remarks: '', signatoryName: '', signatoryDesignation: '', signature: '', signatureImage: '', buildingName: '', wingName: '', liftNo: '' })
+const defaultLogForm = () => ({ month: new Date().getMonth() + 1, year: currentYear, date: new Date().toISOString().split('T')[0], technician: '', remarks: '', signatoryName: '', signatoryDesignation: '', signature: '', technicianSignature: '', signatureImage: '', buildingName: '', wingName: '', liftNo: '' })
 const logForm = ref(defaultLogForm())
 
 // Lift selection for the Log Maintenance modal (keeps names/ids in sync)
@@ -2706,6 +2706,7 @@ function openEditLog(log) {
     signatoryName: log.signatoryName || '',
     signatoryDesignation: log.signatoryDesignation || '',
     signature: log.signature || '',
+    technicianSignature: log.technicianSignature || '',
     signatureImage: log.signatureImage || '',
     buildingName: log.buildingName || '',
     wingName: log.wingName || '',
@@ -2751,6 +2752,7 @@ async function saveLog() {
       signatoryName: logForm.value.signatoryName,
       signatoryDesignation: logForm.value.signatoryDesignation,
       signature: logForm.value.signature,
+      technicianSignature: logForm.value.technicianSignature,
       signatureImage: logForm.value.signatureImage || '',
       loggedAt: completedAt,
       completedAt,
@@ -2797,6 +2799,7 @@ function _buildReceiptHtml(log, company) {
   const completedStr = completedTs ? completedTs.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : ''
   const sigSrc = log.signatureImage?.startsWith('data:image') ? log.signatureImage
                : log.signature?.startsWith('data:image') ? log.signature : null
+  const techSigSrc = log.technicianSignature?.startsWith('data:image') ? log.technicianSignature : null
   const building = [log.buildingName, log.wingName, log.liftNo ? 'Lift ' + log.liftNo : ''].filter(Boolean).join(' · ')
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
     *{margin:0;padding:0;box-sizing:border-box;}
@@ -2836,11 +2839,20 @@ function _buildReceiptHtml(log, company) {
     </div>
     <div class="sec">Work Done / Remarks</div>
     <div class="box">${log.remarks || 'Routine maintenance completed as per schedule.'}</div>
-    <div class="sec">Customer Acknowledgement</div>
-    <div class="sig-box">
-      ${sigSrc ? `<img src="${sigSrc}"/>` : '<div style="color:#94a3b8;font-size:11px;padding:12px 0;">[ Signature not provided ]</div>'}
-      <div class="sig-name">${log.signatoryName || '—'}</div>
-      <div class="sig-desg">${log.signatoryDesignation || '—'}</div>
+    <div class="sec">Signatures</div>
+    <div class="grid">
+      <div class="sig-box">
+        <div style="font-size:9px;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Arrival Signature</div>
+        ${sigSrc ? `<img src="${sigSrc}"/>` : '<div style="color:#94a3b8;font-size:11px;padding:12px 0;">[ Signature not provided ]</div>'}
+        <div class="sig-name">${log.signatoryName || '—'}</div>
+        <div class="sig-desg">${log.signatoryDesignation || 'Client'}</div>
+      </div>
+      <div class="sig-box">
+        <div style="font-size:9px;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Resolution Signature</div>
+        ${techSigSrc ? `<img src="${techSigSrc}"/>` : '<div style="color:#94a3b8;font-size:11px;padding:12px 0;">[ Signature not provided ]</div>'}
+        <div class="sig-name">${log.technician || log.technicianName || '—'}</div>
+        <div class="sig-desg">Service Engineer</div>
+      </div>
     </div>
   </div>
   ${footerUrl ? `<img class="footer-img" src="${footerUrl}"/>` : ''}
