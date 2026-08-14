@@ -3,372 +3,170 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ============================================================================
+    // AUTH MODEL — READ THIS BEFORE EDITING ANYTHING BELOW
+    // ============================================================================
+    // Every session in this app — staff logging in AND anonymous visitors on the
+    // public QR "report a lift issue" page (LiftTicketView) — authenticates via
+    // Firebase ANONYMOUS auth only. There is no per-user email/password Firebase
+    // Auth account and no custom claims. The actual "who is this, and what role do
+    // they have" check happens entirely client-side in the Vue app (Pinia auth
+    // store): after anonymous sign-in, it queries the `employees` / `users`
+    // collections and matches a plaintext username + password.
+    //
+    // Consequence: request.auth carries NO identity or role information Firestore
+    // rules can act on. Every signed-in session — admin, technician, sales, or a
+    // stranger who never opened the app but knows how to call the Firebase SDK —
+    // looks identical at this layer. This app's Firebase config (apiKey, project
+    // id, etc.) is public by design, the same as any Firebase web app, so anyone
+    // can call signInAnonymously() themselves and issue Firestore requests directly,
+    // skipping the Vue app (and its role checks) entirely.
+    //
+    // What these rules CAN enforce, given that:
+    //   1. The request came from *some* signed-in-anonymously session — blocks raw,
+    //      unauthenticated hits with no Firebase Auth session at all.
+    //   2. Basic shape/enum validation on write CONTENT, independent of who sent it
+    //      (e.g. a new employee/user document can't set role to a made-up string).
+    //   3. Default-deny for any collection not explicitly listed below.
+    //
+    // What these rules CANNOT enforce (this is a hard ceiling, not an oversight):
+    //   - "Technicians can only read/write jobs assigned to them" — that's the
+    //     Vue app's job (see the visibleX computed filters in Complaints/Repairs/
+    //     Installation/Modernisation/AMC), not something rules can check here.
+    //   - "Only admins can delete" — same limitation; canDelete is a client-side
+    //     permission flag, not something request.auth exposes.
+    //   - Preventing a technically savvy visitor from writing directly to any
+    //     collection listed below with allow write: if isAuthed() — they just need
+    //     to call signInAnonymously() first, which anyone can do.
+    //
+    // Known residual risk — read before going live:
+    //   `/create-admin-user` (CreateAdminView.vue) lets anyone create an
+    //   `employees`/`users` document with role:'admin' by design — it's the
+    //   first-admin bootstrap flow, and these rules can't distinguish "the owner
+    //   bootstrapping their first admin" from "a random visitor granting
+    //   themselves admin." The rules below validate that `role`, when set, is one
+    //   of the five known values — that stops garbage/typo roles, NOT unauthorized
+    //   admin creation. Once your real admin account exists:
+    //     - Don't link /create-admin-user anywhere public.
+    //     - Consider adding a guard in the app (e.g. only allow it when zero
+    //       admins exist yet) or removing the route from production builds.
+    //
+    // If you need real server-enforced role security (technicians genuinely unable
+    // to read other technicians' jobs even via a direct API call, delete truly
+    // locked to admins, etc.), the only fix is migrating to real Firebase
+    // Authentication (email/password or phone) with custom claims set via the
+    // Admin SDK from a trusted server — a Cloud Function or similar — which this
+    // project intentionally doesn't run today (notifications were moved off
+    // Cloudflare Workers back to Firebase Cloud Functions, but that deploy is
+    // separate from — and doesn't imply — a custom-claims auth layer).
+    // ============================================================================
+
     // ─── Helpers ─────────────────────────────────────────────────────────────
-    function isAuth() {
+    function isAuthed() {
       return request.auth != null;
     }
 
-    // ─── users ────────────────────────────────────────────────────────────────
-    match /users/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
+    function isValidRole(role) {
+      return role in ['admin', 'sales', 'technician', 'reception', 'user'];
     }
 
-    // ─── employees ────────────────────────────────────────────────────────────
+    function isNonEmptyString(v) {
+      return v is string && v.size() > 0;
+    }
+
+    // ─── employees / users ──────────────────────────────────────────────────────
+    // The two collections credentials + role live in (see stores/auth.js — it
+    // checks `employees` first, then falls back to `users`). Validate the shape
+    // of new documents; see the residual-risk note above re: role:'admin'.
     match /employees/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
+      allow read:   if isAuthed();
+      allow update: if isAuthed();
+      allow delete: if isAuthed();
+      allow create: if isAuthed()
+                    && isNonEmptyString(request.resource.data.username)
+                    && (!('role' in request.resource.data) || isValidRole(request.resource.data.role));
     }
-
-    // ─── inventory ────────────────────────────────────────────────────────────
-    match /inventory/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── projects ─────────────────────────────────────────────────────────────
-    // NOTE: All sessions (staff AND public QR scanners) use anonymous Firebase
-    // auth, so rules cannot distinguish them at token level. The public QR page
-    // (LiftTicketView) is restricted at code level to a single-doc getOne() call
-    // — it never lists the collection.
-    match /projects/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── projectTimeline ──────────────────────────────────────────────────────
-    match /projectTimeline/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── maintenance ──────────────────────────────────────────────────────────
-    match /maintenance/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── amc ──────────────────────────────────────────────────────────────────
-    match /amc/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── amcMonthlyMaintenance ────────────────────────────────────────────────
-    match /amcMonthlyMaintenance/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── activities ───────────────────────────────────────────────────────────
-    match /activities/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── leads ────────────────────────────────────────────────────────────────
-    match /leads/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── tasks ────────────────────────────────────────────────────────────────
-    match /tasks/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── invoices ─────────────────────────────────────────────────────────────
-    match /invoices/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── installationActivities ───────────────────────────────────────────────
-    match /installationActivities/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── modernisationActivities ──────────────────────────────────────────────
-    match /modernisationActivities/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── repairActivities ─────────────────────────────────────────────────────
-    match /repairActivities/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── complaintActivities ──────────────────────────────────────────────────
-    match /complaintActivities/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── salarySlips ──────────────────────────────────────────────────────────
-    match /salarySlips/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── salaryConfig ─────────────────────────────────────────────────────────
-    match /salaryConfig/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── quotations ───────────────────────────────────────────────────────────
-    match /quotations/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── purchaseOrders ───────────────────────────────────────────────────────
-    match /purchaseOrders/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── proformaInvoices ─────────────────────────────────────────────────────
-    match /proformaInvoices/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── taxInvoices ──────────────────────────────────────────────────────────
-    match /taxInvoices/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── vendors ──────────────────────────────────────────────────────────────
-    match /vendors/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── materials ────────────────────────────────────────────────────────────
-    match /materials/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── bom ──────────────────────────────────────────────────────────────────
-    match /bom/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── settings ─────────────────────────────────────────────────────────────
-    match /settings/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── configurations ───────────────────────────────────────────────────────
-    match /configurations/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── leaveRequests ────────────────────────────────────────────────────────
-    match /leaveRequests/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── gallery ──────────────────────────────────────────────────────────────
-    match /gallery/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── galleryFolders ───────────────────────────────────────────────────────
-    match /galleryFolders/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── inspections ──────────────────────────────────────────────────────────
-    match /inspections/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── pdfCache ─────────────────────────────────────────────────────────────
-    match /pdfCache/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── fcmTokens ────────────────────────────────────────────────────────────
-    match /fcmTokens/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── attendance ───────────────────────────────────────────────────────────
-    match /attendance/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── technicianLocations ──────────────────────────────────────────────────
-    match /technicianLocations/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── siteVisitEvents ──────────────────────────────────────────────────────
-    match /siteVisitEvents/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── trackingSessions ─────────────────────────────────────────────────────
-    match /trackingSessions/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── locationHistory ──────────────────────────────────────────────────────
-    match /locationHistory/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── checklistItems ───────────────────────────────────────────────────────
-    match /checklistItems/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
-
-    // ─── inventoryUsage ───────────────────────────────────────────────────────
-    match /inventoryUsage/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
+    match /users/{docId} {
+      allow read:   if isAuthed();
+      allow update: if isAuthed();
+      allow delete: if isAuthed();
+      allow create: if isAuthed()
+                    && isNonEmptyString(request.resource.data.username)
+                    && (!('role' in request.resource.data) || isValidRole(request.resource.data.role));
     }
 
     // ─── tickets ──────────────────────────────────────────────────────────────
+    // The only collection a true member of the public (someone who scanned a QR
+    // code and never logged into the app — LiftTicketView) creates into.
+    // Validate the minimum shape so malformed/junk docs can't be spammed in.
     match /tickets/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
+      allow read:   if isAuthed();
+      allow update: if isAuthed();
+      allow delete: if isAuthed();
+      allow create: if isAuthed()
+                    && isNonEmptyString(request.resource.data.projectId)
+                    && isNonEmptyString(request.resource.data.ticketRef);
     }
 
     // ─── appBackups (Settings → Backup/Restore) ──────────────────────────────
-    // Metadata doc at appBackups/{backupId}, plus one subcollection per backed-up
-    // collection at appBackups/{backupId}/{collectionName}/{docId}.
+    // Metadata doc at appBackups/{backupId}, plus one subcollection per
+    // backed-up collection at appBackups/{backupId}/{collectionName}/{docId}.
     match /appBackups/{backupId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-
+      allow read, write: if isAuthed();
       match /{collectionName}/{docId} {
-        allow read:   if isAuth();
-        allow create: if isAuth();
-        allow update: if isAuth();
-        allow delete: if isAuth();
+        allow read, write: if isAuthed();
       }
     }
 
-    // ─── liftCertificates ─────────────────────────────────────────────────────
-    match /liftCertificates/{docId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
-    }
+    // ─── Everything else ────────────────────────────────────────────────────────
+    // Same authenticated-only policy — see the AUTH MODEL note at the top of this
+    // file for exactly what "authenticated" does and doesn't guarantee here.
+    match /inventory/{docId}               { allow read, write: if isAuthed(); }
+    match /projects/{docId}                { allow read, write: if isAuthed(); }
+    match /projectTimeline/{docId}         { allow read, write: if isAuthed(); }
+    match /maintenance/{docId}             { allow read, write: if isAuthed(); }
+    match /amc/{docId}                     { allow read, write: if isAuthed(); }
+    match /amcMonthlyMaintenance/{docId}   { allow read, write: if isAuthed(); }
+    match /activities/{docId}              { allow read, write: if isAuthed(); }
+    match /leads/{docId}                   { allow read, write: if isAuthed(); }
+    match /tasks/{docId}                   { allow read, write: if isAuthed(); }
+    match /invoices/{docId}                { allow read, write: if isAuthed(); }
+    match /installationActivities/{docId}  { allow read, write: if isAuthed(); }
+    match /modernisationActivities/{docId} { allow read, write: if isAuthed(); }
+    match /repairActivities/{docId}        { allow read, write: if isAuthed(); }
+    match /complaintActivities/{docId}     { allow read, write: if isAuthed(); }
+    match /salarySlips/{docId}             { allow read, write: if isAuthed(); }
+    match /salaryConfig/{docId}            { allow read, write: if isAuthed(); }
+    match /quotations/{docId}              { allow read, write: if isAuthed(); }
+    match /purchaseOrders/{docId}          { allow read, write: if isAuthed(); }
+    match /proformaInvoices/{docId}        { allow read, write: if isAuthed(); }
+    match /taxInvoices/{docId}             { allow read, write: if isAuthed(); }
+    match /vendors/{docId}                 { allow read, write: if isAuthed(); }
+    match /materials/{docId}               { allow read, write: if isAuthed(); }
+    match /bom/{docId}                     { allow read, write: if isAuthed(); }
+    match /settings/{docId}                { allow read, write: if isAuthed(); }
+    match /configurations/{docId}          { allow read, write: if isAuthed(); }
+    match /leaveRequests/{docId}           { allow read, write: if isAuthed(); }
+    match /gallery/{docId}                 { allow read, write: if isAuthed(); }
+    match /galleryFolders/{docId}          { allow read, write: if isAuthed(); }
+    match /inspections/{docId}             { allow read, write: if isAuthed(); }
+    match /pdfCache/{docId}                { allow read, write: if isAuthed(); }
+    match /fcmTokens/{docId}               { allow read, write: if isAuthed(); }
+    match /attendance/{docId}              { allow read, write: if isAuthed(); }
+    match /technicianLocations/{docId}     { allow read, write: if isAuthed(); }
+    match /siteVisitEvents/{docId}         { allow read, write: if isAuthed(); }
+    match /trackingSessions/{docId}        { allow read, write: if isAuthed(); }
+    match /locationHistory/{docId}         { allow read, write: if isAuthed(); }
+    match /checklistItems/{docId}          { allow read, write: if isAuthed(); }
+    match /inventoryUsage/{docId}          { allow read, write: if isAuthed(); }
+    match /liftCertificates/{docId}        { allow read, write: if isAuthed(); }
 
     // ─── Deny everything else ─────────────────────────────────────────────────
+    // Any collection not explicitly matched above (including typos in a future
+    // edit to this file) is denied by default — this is what actually keeps a
+    // stray/renamed collection from silently becoming world-writable.
     match /{document=**} {
       allow read, write: if false;
     }
   }
 }
-
