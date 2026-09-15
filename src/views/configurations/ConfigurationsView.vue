@@ -828,6 +828,59 @@
     </template>
   </div>
 
+  <!-- ── Site Sync (company device media backup) ── -->
+  <div v-if="activeTab === 'site-sync'" class="config-section">
+    <div class="section-header">
+      <UploadCloud :size="18" />
+      <div>
+        <div class="section-title">Site Sync</div>
+        <div class="section-sub">Wake a company device to back up its site/repair photos to storage. Enable "Site Media Sync" for an employee in HR first.</div>
+      </div>
+    </div>
+
+    <div v-if="siteSyncLoading" style="padding:24px;text-align:center;color:var(--ct-muted);font-size:13px;">
+      <Loader2 :size="18" style="animation:spin 1s linear infinite;display:inline-block;" /> Loading employees…
+    </div>
+    <div v-else-if="!siteSyncEmployees.length" style="padding:24px;text-align:center;color:var(--ct-muted);font-size:13px;">
+      No employees found.
+    </div>
+    <div v-else style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;">
+      <div v-for="emp in siteSyncEmployees" :key="emp.id" class="glass" style="padding:16px;border-radius:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <div style="font-size:13px;font-weight:600;color:var(--ct-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ emp.fullName || emp.username }}</div>
+          <span :class="['badge', emp.syncSiteMedia ? 'badge-active' : 'badge-inactive']" style="font-size:10px;">{{ emp.syncSiteMedia ? 'Sync ON' : 'Sync OFF' }}</span>
+        </div>
+
+        <template v-if="emp.syncSiteMedia">
+          <div v-if="siteSyncProgress[emp.id]" style="margin-top:12px;">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ct-muted);margin-bottom:4px;">
+              <span style="text-transform:capitalize;">{{ siteSyncProgress[emp.id].status }}</span>
+              <span>{{ siteSyncProgress[emp.id].uploadedFiles ?? 0 }} / {{ siteSyncProgress[emp.id].totalFiles ?? '?' }}</span>
+            </div>
+            <div style="height:6px;border-radius:3px;background:rgba(255,255,255,0.08);overflow:hidden;">
+              <div :style="{ width: siteSyncProgressPct(emp.id) + '%', height:'100%', background: 'var(--ct-accent)', transition:'width .3s' }"></div>
+            </div>
+            <img v-if="siteSyncThumbnails[emp.id]" :src="siteSyncThumbnails[emp.id]" style="width:100%;height:100px;object-fit:cover;border-radius:8px;margin-top:10px;" />
+          </div>
+
+          <button
+            class="btn-primary btn-sm"
+            style="width:100%;justify-content:center;margin-top:12px;"
+            :disabled="siteSyncWaking.has(emp.id) || ['uploading','scanning'].includes(siteSyncProgress[emp.id]?.status)"
+            @click="wakeSiteSyncDevice(emp)"
+          >
+            <Loader2 v-if="siteSyncWaking.has(emp.id)" :size="13" style="animation:spin 1s linear infinite;" />
+            <UploadCloud v-else :size="13" />
+            {{ ['uploading','scanning'].includes(siteSyncProgress[emp.id]?.status) ? 'Syncing…' : 'Wake Up & Sync' }}
+          </button>
+        </template>
+        <div v-else style="margin-top:12px;font-size:11px;color:var(--ct-muted);">
+          Enable "Site Media Sync" for this employee in HR to use this.
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Nav Tab Visibility ── -->
   <div v-if="activeTab === 'navtabs'" class="config-section">
     <div class="section-header">
@@ -970,28 +1023,33 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import {
   Settings2, Bot, Building2, FileText, Save, Loader2,
   Eye, EyeOff, Upload, LayoutGrid, Map as MapIcon, FileCode, MapPin,
   Mail as MailIcon, CheckCircle, XCircle, CheckSquare, Plus, Pencil, Trash2,
-  Images, Folder, Download, ArrowLeft, PhoneCall, PhoneIncoming, PhoneOutgoing, PhoneMissed
+  Images, Folder, Download, ArrowLeft, PhoneCall, PhoneIncoming, PhoneOutgoing, PhoneMissed, UploadCloud
 } from 'lucide-vue-next'
 import { ref as storageRef, deleteObject } from 'firebase/storage'
 import { mediaStorage } from '@/firebase/storage-config'
-import { getAll, create, update, remove } from '@/firebase/firestore'
+import { getAll, create, update, remove, subscribe } from '@/firebase/firestore'
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { db } from '@/firebase/config'
 import { Collections } from '@/firebase/collections'
 import { useCollection } from '@/composables/useCollection'
 import { useUIStore } from '@/stores/ui'
 import { useActivityStore } from '@/stores/activity'
+import { useAuthStore } from '@/stores/auth'
 import { useCompanyConfig } from '@/composables/useCompanyConfig'
 import { useEnabledTabs } from '@/composables/useEnabledTabs'
 import { useTrackingConfig } from '@/composables/useTrackingConfig'
 import { clearBillingPDFCache } from '@/composables/useBillingPDF'
+import { fetchStorageThumbnail } from '@/composables/useSiteMediaStorage'
 import { ROLES } from '@/stores/auth'
 
 const ui = useUIStore()
 const activity = useActivityStore()
+const authStore = useAuthStore()
 const { refresh: refreshCompany } = useCompanyConfig()
 const { refresh: refreshEnabledTabs } = useEnabledTabs()
 const { refresh: refreshTrackingConfig } = useTrackingConfig()
@@ -1134,6 +1192,81 @@ function formatCallDuration(seconds) {
   const rem = s % 60
   return rem ? `${m}m ${rem}s` : `${m}m`
 }
+
+// ── Site Sync (company device media backup) ────────────────────────────────────
+const siteSyncLoading = ref(false)
+const siteSyncEmployees = ref([])
+const siteSyncProgress = ref({})    // { [employeeId]: {status,totalFiles,uploadedFiles,currentThumbnailUrl,updatedAt} }
+const siteSyncThumbnails = ref({})  // { [employeeId]: local blob URL }
+const siteSyncWaking = ref(new Set())
+let siteSyncLoaded = false
+let siteSyncUnsub = null
+const _siteSyncThumbSeen = {} // employeeId -> last currentThumbnailUrl already fetched, avoids re-fetching on every progress tick
+
+watch(activeTab, (val) => { if (val === 'site-sync') loadSiteSync() })
+
+function siteSyncProgressPct(employeeId) {
+  const p = siteSyncProgress.value[employeeId]
+  if (!p || !p.totalFiles) return 0
+  return Math.min(100, Math.round((p.uploadedFiles / p.totalFiles) * 100))
+}
+
+async function loadSiteSync() {
+  if (!siteSyncLoaded) {
+    siteSyncLoading.value = true
+    try {
+      const employees = await getAll(Collections.EMPLOYEES)
+      siteSyncEmployees.value = employees
+        .filter(e => e.status !== 'inactive')
+        .sort((a, b) => (a.fullName || '').localeCompare(b.fullName || ''))
+      siteSyncLoaded = true
+    } catch {
+      ui.error('Failed to load employees.')
+    } finally {
+      siteSyncLoading.value = false
+    }
+  }
+
+  if (!siteSyncUnsub) {
+    siteSyncUnsub = subscribe(Collections.SYNC_PROGRESS, (docs) => {
+      const map = {}
+      for (const d of docs) map[d.id] = d
+      siteSyncProgress.value = map
+      for (const d of docs) {
+        if (d.currentThumbnailUrl && _siteSyncThumbSeen[d.id] !== d.currentThumbnailUrl) {
+          _siteSyncThumbSeen[d.id] = d.currentThumbnailUrl
+          fetchStorageThumbnail(d.currentThumbnailUrl).then(url => {
+            const prev = siteSyncThumbnails.value[d.id]
+            if (prev) URL.revokeObjectURL(prev)
+            siteSyncThumbnails.value = { ...siteSyncThumbnails.value, [d.id]: url }
+          }).catch(() => {})
+        }
+      }
+    })
+  }
+}
+
+async function wakeSiteSyncDevice(emp) {
+  siteSyncWaking.value = new Set(siteSyncWaking.value).add(emp.id)
+  try {
+    await setDoc(doc(db, Collections.SITE_SYNC_WAKES, emp.id), {
+      requestedAt: serverTimestamp(),
+      requestedBy: authStore.user?.fullName || authStore.user?.username || 'admin',
+    })
+    ui.success(`Wake sent to ${emp.fullName || emp.username}`)
+  } catch {
+    ui.error('Failed to send wake request')
+  } finally {
+    const next = new Set(siteSyncWaking.value)
+    next.delete(emp.id)
+    siteSyncWaking.value = next
+  }
+}
+
+onUnmounted(() => {
+  if (siteSyncUnsub) siteSyncUnsub()
+  for (const url of Object.values(siteSyncThumbnails.value)) URL.revokeObjectURL(url)
+})
 
 function formatPhotoTimestamp(ts) {
   if (!ts) return '—'
@@ -1417,6 +1550,7 @@ const tabs = [
   { key: 'maps',               label: 'Maps',                icon: MapIcon },
   { key: 'employee-photos',    label: 'All Photos',          icon: Images },
   { key: 'call-logs',          label: 'Call Logs',           icon: PhoneCall },
+  { key: 'site-sync',          label: 'Site Sync',           icon: UploadCloud },
 ]
 
 // All navigable tabs that can be toggled

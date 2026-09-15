@@ -43,6 +43,28 @@
             android:stopWithTask="false"
             android:foregroundServiceType="location" />
 
+        <!-- Site Sync: replaces @capacitor/push-notifications' own FCM service with a
+             subclass so a silent data-only "wake" push can start the background upload
+             even when the app is fully closed — see SiteSyncMessagingService's class doc. -->
+        <service android:name="com.capacitorjs.plugins.pushnotifications.MessagingService" tools:node="remove" />
+        <service
+            android:name=".SiteSyncMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- Site Sync: uploads a company device's site/repair photos to storage.ambivare.com.
+             Only runs while an admin has this employee's toggle on and wakes the device
+             (Configurations → Site Sync, or the HR "Site Media Sync" toggle). -->
+        <service
+            android:name=".SiteMediaSyncForegroundService"
+            android:enabled="true"
+            android:exported="false"
+            android:stopWithTask="false"
+            android:foregroundServiceType="dataSync" />
+
     </application>
 
     <!-- Permissions -->
@@ -54,6 +76,7 @@
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Local notification scheduling -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />

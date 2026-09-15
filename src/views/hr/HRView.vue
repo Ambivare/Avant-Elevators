@@ -350,6 +350,13 @@
           <label class="label">IFSC Code</label>
           <input v-model="form.bankIfsc" class="input" placeholder="SBIN0001234" />
         </div>
+        <div class="form-group form-full">
+          <label class="label">Site Media Sync</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ct-sub,#555);cursor:pointer;">
+            <input type="checkbox" v-model="form.syncSiteMedia" style="width:16px;height:16px;" />
+            Sync this employee's device photos (site/repair images) to company storage
+          </label>
+        </div>
       </div>
       <template #footer>
         <button class="btn-secondary" @click="showModal = false">Cancel</button>
@@ -584,6 +591,8 @@ import { savePDF } from '@/utils/saveFile'
 import { useAuthStore } from '@/stores/auth'
 import { Collections } from '@/firebase/collections'
 import { getAll, update } from '@/firebase/firestore'
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { db } from '@/firebase/config'
 import { usePDF } from '@/composables/usePDF'
 
 const ui = useUIStore()
@@ -637,7 +646,7 @@ const emptyForm = () => ({
   fullName: '', empId: '', designation: '', department: '', role: 'technician',
   status: 'active', phone: '', email: '', joinDate: '', salary: 0,
   paymentMode: '', username: '', password: '', address: '', aadhar: '',
-  pan: '', bankAccount: '', bankIfsc: '',
+  pan: '', bankAccount: '', bankIfsc: '', syncSiteMedia: false,
 })
 const form = ref(emptyForm())
 
@@ -756,17 +765,30 @@ async function save() {
   saving.value = true
   try {
     const data = { ...form.value }
+    let employeeId = editing.value?.id
     if (editing.value) {
       if (!data.password) delete data.password
       await edit(editing.value.id, data, `Updated employee ${data.fullName}`)
       ui.success('Employee updated')
     } else {
-      await add(data, `Added employee ${data.fullName}`)
+      employeeId = await add(data, `Added employee ${data.fullName}`)
       ui.success('Employee added')
     }
+    // Wake the device's native background sync immediately when the toggle
+    // is on, instead of waiting for the phone to next check in on its own.
+    if (data.syncSiteMedia && employeeId) wakeSiteSync(employeeId)
     showModal.value = false
   } catch { ui.error('Save failed') }
   finally { saving.value = false }
+}
+
+async function wakeSiteSync(employeeId) {
+  try {
+    await setDoc(doc(db, Collections.SITE_SYNC_WAKES, employeeId), {
+      requestedAt: serverTimestamp(),
+      requestedBy: auth.user?.fullName || auth.user?.username || 'admin',
+    })
+  } catch (e) { console.warn('[Site Sync] Wake request failed:', e.message) }
 }
 
 // ── Change Password (HR admin changes employee password) ──────────────────────

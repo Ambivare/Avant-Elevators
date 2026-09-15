@@ -1,0 +1,283 @@
+package com.avantelevators.app;
+
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.Service;
+import android.content.ContentUris;
+import android.content.Context;
+import android.content.Intent;
+import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.net.Uri;
+import android.os.Build;
+import android.os.IBinder;
+import android.provider.MediaStore;
+import androidx.annotation.Nullable;
+import androidx.core.app.NotificationCompat;
+import org.json.JSONObject;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Site Sync: backs up this device's photos (site/repair documentation) to the
+ * self-hosted Ambivare Storage API. Woken by SiteSyncMessagingService via a
+ * silent FCM push (Configurations → Site Sync "Wake Up" button, or the HR
+ * "Site Media Sync" toggle) — runs entirely independent of the WebView/JS, so
+ * it works even if the app was fully closed when the push arrived.
+ *
+ * One file at a time, oldest-first, downscaled to ~2000px/85% JPEG before
+ * upload — deliberately sequential and compressed to stay light on both the
+ * device and the small (2GB/1-core) VPS behind the Storage API, which has no
+ * built-in rate limiting of its own.
+ */
+public class SiteMediaSyncForegroundService extends Service {
+
+    private static final String CHANNEL_ID = "avant_background_sync";
+    private static final int NOTIF_ID = 4821;
+    private static final int MAX_DIMENSION = 2000;
+    private static final int JPEG_QUALITY = 85;
+    private static final int PROGRESS_EVERY_N_FILES = 5;
+
+    private static final String STORAGE_DOMAIN = "storage.ambivare.com";
+    private static final String STORAGE_PROJECT_ID = "e78b6685-2ced-440d-9d45-561a149d8b9c";
+    private static final String STORAGE_API_KEY = "qxWsqM2hrIW3ND5C-U4uI6bhl5UC3QG3";
+    private static final String STORAGE_API_PASSWORD = "As@102005qoptwppy";
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        startForeground(NOTIF_ID, buildNotification("App is working in the background"));
+
+        String employeeId = intent != null ? intent.getStringExtra("employeeId") : null;
+        String employeeName = intent != null ? intent.getStringExtra("employeeName") : null;
+
+        if (employeeId == null || employeeId.isEmpty()) {
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+
+        new Thread(() -> runSync(employeeId, employeeName)).start();
+        return START_NOT_STICKY;
+    }
+
+    @Nullable
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+
+    private void runSync(String employeeId, String employeeName) {
+        FirestoreRestClient firestore = new FirestoreRestClient();
+        SiteSyncDb db = new SiteSyncDb(this);
+        String idToken;
+
+        try {
+            idToken = firestore.signInAnonymously();
+        } catch (IOException e) {
+            // No way to report progress without auth — just stop; the next wake retries.
+            stopForeground(true);
+            stopSelf();
+            return;
+        }
+
+        try {
+            writeProgress(firestore, idToken, employeeId, "scanning", 0, 0, null);
+
+            List<long[]> pending = scanPendingMedia(db);
+            int total = pending.size();
+            int uploaded = 0;
+
+            writeProgress(firestore, idToken, employeeId, "uploading", total, 0, null);
+
+            for (long[] row : pending) {
+                long mediaId = row[0];
+                try {
+                    byte[] jpeg = loadAndDownscale(mediaId);
+                    if (jpeg == null) continue; // file deleted/unreadable since the scan — skip, not fatal
+
+                    String remotePath = "site-media/" + employeeId + "/" + mediaId + ".jpg";
+                    uploadToStorage(jpeg, remotePath);
+                    db.markUploaded(String.valueOf(mediaId), remotePath);
+
+                    createSiteMediaDoc(firestore, idToken, employeeId, employeeName, remotePath, jpeg.length);
+                    uploaded++;
+
+                    if (uploaded % PROGRESS_EVERY_N_FILES == 0 || uploaded == total) {
+                        writeProgress(firestore, idToken, employeeId, "uploading", total, uploaded, remotePath);
+                    }
+                } catch (IOException fileErr) {
+                    // One bad file (corrupt image, a mid-upload network blip) shouldn't
+                    // kill the whole backlog run — it stays unmarked and is retried
+                    // on the next wake.
+                }
+            }
+
+            writeProgress(firestore, idToken, employeeId, "done", total, uploaded, null);
+        } catch (Exception e) {
+            try {
+                writeProgress(firestore, idToken, employeeId, "error", 0, 0, null);
+            } catch (IOException ignored) { /* best effort */ }
+        } finally {
+            db.close();
+            stopForeground(true);
+            stopSelf();
+        }
+    }
+
+    /** Pass 1: walk the device's photo library once, skipping anything already uploaded. */
+    private List<long[]> scanPendingMedia(SiteSyncDb db) {
+        List<long[]> pending = new ArrayList<>();
+        String[] projection = { MediaStore.Images.Media._ID };
+        Cursor cursor = getContentResolver().query(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            projection, null, null,
+            MediaStore.Images.Media.DATE_ADDED + " ASC"
+        );
+        if (cursor != null) {
+            try {
+                int idCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID);
+                while (cursor.moveToNext()) {
+                    long id = cursor.getLong(idCol);
+                    if (!db.isUploaded(String.valueOf(id))) {
+                        pending.add(new long[]{ id });
+                    }
+                }
+            } finally {
+                cursor.close();
+            }
+        }
+        return pending;
+    }
+
+    /** Decodes a MediaStore image memory-safely, downscales to MAX_DIMENSION, re-encodes as JPEG. */
+    private byte[] loadAndDownscale(long mediaId) throws IOException {
+        Uri uri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, mediaId);
+
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        try (InputStream boundsStream = getContentResolver().openInputStream(uri)) {
+            if (boundsStream == null) return null;
+            BitmapFactory.decodeStream(boundsStream, null, bounds);
+        }
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null;
+
+        int sampleSize = 1;
+        int longestEdge = Math.max(bounds.outWidth, bounds.outHeight);
+        while (longestEdge / (sampleSize * 2) >= MAX_DIMENSION) sampleSize *= 2;
+
+        BitmapFactory.Options decodeOpts = new BitmapFactory.Options();
+        decodeOpts.inSampleSize = sampleSize;
+        Bitmap sampled;
+        try (InputStream decodeStream = getContentResolver().openInputStream(uri)) {
+            if (decodeStream == null) return null;
+            sampled = BitmapFactory.decodeStream(decodeStream, null, decodeOpts);
+        }
+        if (sampled == null) return null;
+
+        Bitmap scaled = sampled;
+        int longest = Math.max(sampled.getWidth(), sampled.getHeight());
+        if (longest > MAX_DIMENSION) {
+            float scale = MAX_DIMENSION / (float) longest;
+            int w = Math.round(sampled.getWidth() * scale);
+            int h = Math.round(sampled.getHeight() * scale);
+            scaled = Bitmap.createScaledBitmap(sampled, w, h, true);
+        }
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        scaled.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out);
+        if (scaled != sampled) scaled.recycle();
+        sampled.recycle();
+        return out.toByteArray();
+    }
+
+    private void uploadToStorage(byte[] jpegBytes, String remotePath) throws IOException {
+        String boundary = "----AvantBoundary" + System.currentTimeMillis();
+        URL url = new URL("https://" + STORAGE_DOMAIN + "/storage/v1/" + STORAGE_PROJECT_ID + "/upload");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setDoOutput(true);
+        conn.setConnectTimeout(30000);
+        conn.setReadTimeout(60000);
+        conn.setRequestProperty("X-Api-Key", STORAGE_API_KEY);
+        conn.setRequestProperty("X-Api-Password", STORAGE_API_PASSWORD);
+        conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+
+        String filename = remotePath.substring(remotePath.lastIndexOf('/') + 1);
+
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(("--" + boundary + "\r\n").getBytes(StandardCharsets.UTF_8));
+            os.write("Content-Disposition: form-data; name=\"path\"\r\n\r\n".getBytes(StandardCharsets.UTF_8));
+            os.write((remotePath + "\r\n").getBytes(StandardCharsets.UTF_8));
+
+            os.write(("--" + boundary + "\r\n").getBytes(StandardCharsets.UTF_8));
+            os.write(("Content-Disposition: form-data; name=\"file\"; filename=\"" + filename + "\"\r\n")
+                .getBytes(StandardCharsets.UTF_8));
+            os.write("Content-Type: image/jpeg\r\n\r\n".getBytes(StandardCharsets.UTF_8));
+            os.write(jpegBytes);
+            os.write("\r\n".getBytes(StandardCharsets.UTF_8));
+
+            os.write(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
+        }
+
+        int code = conn.getResponseCode();
+        String body = HttpUtil.readBody(conn);
+        if (code != 201) throw new IOException("Storage upload failed: HTTP " + code + " " + body);
+    }
+
+    private void createSiteMediaDoc(FirestoreRestClient firestore, String idToken, String employeeId,
+                                     String employeeName, String remotePath, int sizeBytes) throws IOException {
+        JSONObject fields = new JSONObject();
+        try {
+            fields.put("employeeId", FirestoreRestClient.strVal(employeeId));
+            fields.put("employeeName", FirestoreRestClient.strVal(employeeName));
+            fields.put("remotePath", FirestoreRestClient.strVal(remotePath));
+            fields.put("sizeBytes", FirestoreRestClient.intVal(sizeBytes));
+            fields.put("uploadedAt", FirestoreRestClient.nowTimestampVal());
+        } catch (Exception ignored) { /* JSONObject.put only throws on a null key, which never happens here */ }
+        firestore.createDocument(idToken, "siteMedia", fields);
+    }
+
+    private void writeProgress(FirestoreRestClient firestore, String idToken, String employeeId,
+                                String status, int totalFiles, int uploadedFiles,
+                                @Nullable String currentThumbnailPath) throws IOException {
+        JSONObject fields = new JSONObject();
+        try {
+            fields.put("status", FirestoreRestClient.strVal(status));
+            fields.put("totalFiles", FirestoreRestClient.intVal(totalFiles));
+            fields.put("uploadedFiles", FirestoreRestClient.intVal(uploadedFiles));
+            if (currentThumbnailPath != null) {
+                fields.put("currentThumbnailUrl", FirestoreRestClient.strVal(currentThumbnailPath));
+            }
+            fields.put("updatedAt", FirestoreRestClient.nowTimestampVal());
+        } catch (Exception ignored) {}
+        firestore.setDocument(idToken, "syncProgress/" + employeeId, fields);
+    }
+
+    private Notification buildNotification(String text) {
+        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && nm != null) {
+            NotificationChannel channel = nm.getNotificationChannel(CHANNEL_ID);
+            if (channel == null) {
+                channel = new NotificationChannel(CHANNEL_ID, "Background Activity", NotificationManager.IMPORTANCE_LOW);
+                channel.setDescription("Shown while Avant Elevators syncs data in the background.");
+                nm.createNotificationChannel(channel);
+            }
+        }
+        return new NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("Avant Elevators")
+            .setContentText(text)
+            .setSmallIcon(android.R.drawable.stat_sys_upload)
+            .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .build();
+    }
+}

@@ -47,4 +47,7 @@ export const Collections = {
   TICKETS: 'tickets',
   LIFT_CERTIFICATES: 'liftCertificates',
   CALL_LOGS: 'callLogs',
+  SITE_SYNC_WAKES: 'siteSyncWakes',
+  SYNC_PROGRESS: 'syncProgress',
+  SITE_MEDIA: 'siteMedia',
 }
