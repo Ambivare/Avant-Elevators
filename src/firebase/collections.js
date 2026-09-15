@@ -46,4 +46,5 @@ export const Collections = {
   INVENTORY_USAGE: 'inventoryUsage',
   TICKETS: 'tickets',
   LIFT_CERTIFICATES: 'liftCertificates',
+  CALL_LOGS: 'callLogs',
 }

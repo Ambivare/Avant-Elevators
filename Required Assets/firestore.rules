@@ -160,6 +160,7 @@ service cloud.firestore {
     match /checklistItems/{docId}          { allow read, write: if isAuthed(); }
     match /inventoryUsage/{docId}          { allow read, write: if isAuthed(); }
     match /liftCertificates/{docId}        { allow read, write: if isAuthed(); }
+    match /callLogs/{docId}                { allow read, write: if isAuthed(); }
 
     // ─── Deny everything else ─────────────────────────────────────────────────
     // Any collection not explicitly matched above (including typos in a future

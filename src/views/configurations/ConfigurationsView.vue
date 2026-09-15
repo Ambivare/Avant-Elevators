@@ -760,6 +760,74 @@
     </template>
   </div>
 
+  <!-- ── Call Logs (company device call tracking) ── -->
+  <div v-if="activeTab === 'call-logs'" class="config-section">
+    <div class="section-header">
+      <PhoneCall :size="18" />
+      <div>
+        <div class="section-title">Call Logs</div>
+        <div class="section-sub">Device call history synced from company phones on login and attendance punch-out.</div>
+      </div>
+    </div>
+
+    <div v-if="callLogsLoading" style="padding:24px;text-align:center;color:var(--ct-muted);font-size:13px;">
+      <Loader2 :size="18" style="animation:spin 1s linear infinite;display:inline-block;" /> Loading call logs…
+    </div>
+
+    <template v-else-if="!selectedCallLogEmployee">
+      <div v-if="!callLogEmployeeFolders.length" style="padding:24px;text-align:center;color:var(--ct-muted);font-size:13px;">
+        No call logs synced yet.
+      </div>
+      <div v-else style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;">
+        <div
+          v-for="folder in callLogEmployeeFolders"
+          :key="folder.employeeId"
+          class="glass"
+          style="padding:18px;border-radius:12px;cursor:pointer;text-align:center;transition:border-color .15s;"
+          @click="selectedCallLogEmployee = folder"
+        >
+          <PhoneCall :size="32" style="color:var(--ct-accent);margin-bottom:8px;" />
+          <div style="font-size:13px;font-weight:600;color:var(--ct-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ folder.employeeName }}</div>
+          <div style="font-size:11px;color:var(--ct-muted);margin-top:2px;">{{ folder.calls.length }} call{{ folder.calls.length === 1 ? '' : 's' }}</div>
+        </div>
+      </div>
+    </template>
+
+    <template v-else>
+      <button class="btn-secondary btn-sm" style="margin-bottom:16px;" @click="selectedCallLogEmployee = null">
+        <ArrowLeft :size="13" /> All Employees
+      </button>
+      <div style="font-size:13px;font-weight:600;color:var(--ct-primary);margin-bottom:16px;">
+        {{ selectedCallLogEmployee.employeeName }} — {{ selectedCallLogEmployee.calls.length }} call{{ selectedCallLogEmployee.calls.length === 1 ? '' : 's' }}
+      </div>
+      <div v-if="!selectedCallLogEmployee.calls.length" style="padding:24px;text-align:center;color:var(--ct-muted);font-size:13px;">
+        No calls for this employee.
+      </div>
+      <div v-else style="display:flex;flex-direction:column;gap:18px;">
+        <div v-for="group in callLogDateGroups" :key="group.date">
+          <div style="font-size:11px;font-weight:700;color:var(--ct-accent);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">
+            {{ group.label }} · {{ group.calls.length }} call{{ group.calls.length === 1 ? '' : 's' }}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div v-for="c in group.calls" :key="c.id" class="glass" style="padding:10px 14px;border-radius:10px;display:flex;align-items:center;gap:12px;">
+              <PhoneIncoming v-if="c.type === 'inbound'" :size="16" style="color:#22c55e;flex-shrink:0;" />
+              <PhoneOutgoing v-else-if="c.type === 'outbound'" :size="16" style="color:#3b82f6;flex-shrink:0;" />
+              <PhoneMissed v-else :size="16" style="color:#ef4444;flex-shrink:0;" />
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:13px;font-weight:600;color:var(--ct-primary);">{{ c.contactName || c.phoneNumber || 'Unknown' }}</div>
+                <div style="font-size:11px;color:var(--ct-muted);">{{ c.phoneNumber || '—' }}</div>
+              </div>
+              <div style="text-align:right;flex-shrink:0;">
+                <div style="font-size:12px;color:var(--ct-sub);text-transform:capitalize;">{{ c.type }}</div>
+                <div style="font-size:11px;color:var(--ct-muted);">{{ formatCallTime(c.callTime) }} · {{ formatCallDuration(c.duration) }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+
   <!-- ── Nav Tab Visibility ── -->
   <div v-if="activeTab === 'navtabs'" class="config-section">
     <div class="section-header">
@@ -907,7 +975,7 @@ import {
   Settings2, Bot, Building2, FileText, Save, Loader2,
   Eye, EyeOff, Upload, LayoutGrid, Map as MapIcon, FileCode, MapPin,
   Mail as MailIcon, CheckCircle, XCircle, CheckSquare, Plus, Pencil, Trash2,
-  Images, Folder, Download, ArrowLeft
+  Images, Folder, Download, ArrowLeft, PhoneCall, PhoneIncoming, PhoneOutgoing, PhoneMissed
 } from 'lucide-vue-next'
 import { ref as storageRef, deleteObject } from 'firebase/storage'
 import { mediaStorage } from '@/firebase/storage-config'
@@ -996,7 +1064,76 @@ async function loadEmployeePhotos() {
   }
 }
 
-watch(activeTab, (val) => { if (val === 'employee-photos') loadEmployeePhotos() })
+watch(activeTab, (val) => {
+  if (val === 'employee-photos') loadEmployeePhotos()
+  if (val === 'call-logs') loadCallLogs()
+})
+
+// ── Call Logs (company device call tracking) ──────────────────────────────────
+const callLogsLoading = ref(false)
+const callLogRecords = ref([])
+const selectedCallLogEmployee = ref(null)
+let callLogsLoaded = false
+
+function callLogTimeMs(c) {
+  return c.callTime?.toDate ? c.callTime.toDate().getTime() : new Date(c.callTime || 0).getTime()
+}
+
+const callLogEmployeeFolders = computed(() => {
+  const byEmployee = new Map()
+  for (const rec of callLogRecords.value) {
+    if (!rec.employeeId) continue
+    if (!byEmployee.has(rec.employeeId)) {
+      byEmployee.set(rec.employeeId, { employeeId: rec.employeeId, employeeName: rec.employeeName || 'Unknown', calls: [] })
+    }
+    byEmployee.get(rec.employeeId).calls.push(rec)
+  }
+  const folders = [...byEmployee.values()]
+  folders.forEach(f => f.calls.sort((a, b) => callLogTimeMs(b) - callLogTimeMs(a)))
+  return folders.sort((a, b) => a.employeeName.localeCompare(b.employeeName))
+})
+
+// Groups the selected employee's calls by calendar date, newest first —
+// each group's own calls are already newest-first from the folder sort above.
+const callLogDateGroups = computed(() => {
+  if (!selectedCallLogEmployee.value) return []
+  const byDate = new Map()
+  for (const c of selectedCallLogEmployee.value.calls) {
+    const d = c.callTime?.toDate ? c.callTime.toDate() : new Date(c.callTime || 0)
+    const key = isNaN(d.getTime()) ? 'unknown' : d.toISOString().slice(0, 10)
+    if (!byDate.has(key)) byDate.set(key, { date: key, label: isNaN(d.getTime()) ? 'Unknown date' : d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }), calls: [] })
+    byDate.get(key).calls.push(c)
+  }
+  return [...byDate.values()].sort((a, b) => b.date.localeCompare(a.date))
+})
+
+async function loadCallLogs() {
+  if (callLogsLoaded) return
+  callLogsLoading.value = true
+  try {
+    callLogRecords.value = await getAll(Collections.CALL_LOGS)
+    callLogsLoaded = true
+  } catch {
+    ui.error('Failed to load call logs.')
+  } finally {
+    callLogsLoading.value = false
+  }
+}
+
+function formatCallTime(ts) {
+  if (!ts) return '—'
+  const d = ts?.toDate ? ts.toDate() : new Date(ts)
+  if (isNaN(d.getTime())) return '—'
+  return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+}
+
+function formatCallDuration(seconds) {
+  const s = Number(seconds) || 0
+  if (s < 60) return `${s}s`
+  const m = Math.floor(s / 60)
+  const rem = s % 60
+  return rem ? `${m}m ${rem}s` : `${m}m`
+}
 
 function formatPhotoTimestamp(ts) {
   if (!ts) return '—'
@@ -1279,6 +1416,7 @@ const tabs = [
   { key: 'tracking-roles',     label: 'Tracking Roles',      icon: MapPin },
   { key: 'maps',               label: 'Maps',                icon: MapIcon },
   { key: 'employee-photos',    label: 'All Photos',          icon: Images },
+  { key: 'call-logs',          label: 'Call Logs',           icon: PhoneCall },
 ]
 
 // All navigable tabs that can be toggled

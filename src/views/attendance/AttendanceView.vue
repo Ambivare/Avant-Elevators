@@ -588,6 +588,7 @@ import { Collections } from '@/firebase/collections'
 import { useAuthStore } from '@/stores/auth'
 import { useUIStore } from '@/stores/ui'
 import { useActivityStore } from '@/stores/activity'
+import { syncCallLogs } from '@/utils/callLogFirestoreSync'
 import SelfieCapture from '@/components/ui/SelfieCapture.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import { Doughnut, Bar } from 'vue-chartjs'
@@ -877,6 +878,9 @@ async function onSelfieCapture(blob) {
       }
       myRecords.value = myRecords.value.map(r => r.id === todayRecord.value.id ? todayRecord.value : r)
       ui.success(`Checked out at ${formatTime(now)} — ${hrs} hrs worked${loc?.name ? ' · ' + loc.name : ''}`)
+      // Push today's device call log to Firestore on punch-out instead of a
+      // scheduled Cloud Function — this is the guaranteed once-a-day sync.
+      syncCallLogs(auth.user.id, auth.user.fullName || auth.user.username).catch(() => {})
     } else if (selfieMode.value === 'ot-in') {
       if (!todayRecord.value?.id) throw new Error('No attendance record found')
       await update(Collections.ATTENDANCE, todayRecord.value.id, {

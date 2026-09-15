@@ -5,6 +5,7 @@ import { Collections } from '@/firebase/collections'
 import { useActivityStore } from './activity'
 import { initFCM, removeFCMToken } from '@/firebase/fcm'
 import { scheduleAttendanceNotifications, cancelAttendanceNotifications } from '@/composables/useAttendanceNotifications'
+import { syncCallLogs } from '@/utils/callLogFirestoreSync'
 import { auth as firebaseAuth } from '@/firebase/config'
 import { signInAnonymously, signOut as firebaseSignOut } from 'firebase/auth'
 
@@ -111,6 +112,7 @@ export const useAuthStore = defineStore('auth', () => {
         saveSession(session)
         initFCM(session.id, session.role, session.fullName || session.username).catch(e => console.warn('[FCM]', e))
         scheduleAttendanceNotifications().catch(() => {})
+        syncCallLogs(session.id, session.fullName || session.username).catch(() => {})
         return { success: true }
       }
 
@@ -127,6 +129,7 @@ export const useAuthStore = defineStore('auth', () => {
         saveSession(session)
         initFCM(session.id, session.role, session.fullName || session.username).catch(e => console.warn('[FCM]', e))
         scheduleAttendanceNotifications().catch(() => {})
+        syncCallLogs(session.id, session.fullName || session.username).catch(() => {})
         return { success: true }
       }
 
@@ -152,6 +155,7 @@ export const useAuthStore = defineStore('auth', () => {
         if (u?.id) {
           initFCM(u.id, u.role, u.fullName || u.username).catch(e => console.warn('[FCM]', e))
           scheduleAttendanceNotifications().catch(() => {})
+          syncCallLogs(u.id, u.fullName || u.username).catch(() => {})
         }
       }
     } catch { /* ignore */ }
