@@ -48,10 +48,10 @@ public class SiteMediaSyncForegroundService extends Service {
     private static final int JPEG_QUALITY = 85;
     private static final int PROGRESS_EVERY_N_FILES = 5;
 
-    private static final String STORAGE_DOMAIN = "storage.ambivare.com";
-    private static final String STORAGE_PROJECT_ID = "e78b6685-2ced-440d-9d45-561a149d8b9c";
-    private static final String STORAGE_API_KEY = "qxWsqM2hrIW3ND5C-U4uI6bhl5UC3QG3";
-    private static final String STORAGE_API_PASSWORD = "As@102005qoptwppy";
+    private static final String STORAGE_DOMAIN = "vps.starindia.online";
+    private static final String STORAGE_PROJECT_ID = "43e1ce94-5833-458e-8d0b-d581b9a249fc";
+    private static final String STORAGE_API_KEY = "72giskwKd5L7iP6RPaBTOb-Ci-yCmKFA";
+    private static final String STORAGE_API_PASSWORD = "102005";
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {

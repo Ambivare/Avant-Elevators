@@ -1,11 +1,11 @@
-// Client for the self-hosted Ambivare Storage API (storage.ambivare.com) —
+// Client for the self-hosted Ambivare Storage API (vps.starindia.online) —
 // used for the Site Sync feature's live thumbnails in Configurations. The
 // actual uploads happen natively on-device (android/.../SiteMediaSyncForegroundService.java);
 // this module only needs read access, to preview what's landing in real time.
-const DOMAIN     = 'storage.ambivare.com'
-const PROJECT_ID = 'e78b6685-2ced-440d-9d45-561a149d8b9c'
-const API_KEY      = 'qxWsqM2hrIW3ND5C-U4uI6bhl5UC3QG3'
-const API_PASSWORD = 'As@102005qoptwppy'
+const DOMAIN     = 'vps.starindia.online'
+const PROJECT_ID = '43e1ce94-5833-458e-8d0b-d581b9a249fc'
+const API_KEY      = '72giskwKd5L7iP6RPaBTOb-Ci-yCmKFA'
+const API_PASSWORD = '102005'
 
 const BASE = `https://${DOMAIN}/storage/v1/${PROJECT_ID}`
 
