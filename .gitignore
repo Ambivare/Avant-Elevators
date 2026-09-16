@@ -35,3 +35,7 @@ android/build/
 android/capacitor-cordova-android-plugins/build/
 .claude/
 functions/.env
+
+# vps/site-sync-notifier — never commit the Firebase admin credential or local env
+vps/site-sync-notifier/.env
+vps/site-sync-notifier/service-account*.json

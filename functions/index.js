@@ -55,7 +55,7 @@
  */
 
 const { onSchedule }        = require('firebase-functions/v2/scheduler')
-const { onDocumentCreated, onDocumentUpdated, onDocumentWritten } = require('firebase-functions/v2/firestore')
+const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore')
 const { initializeApp }     = require('firebase-admin/app')
 const { getFirestore }      = require('firebase-admin/firestore')
 const { getMessaging }      = require('firebase-admin/messaging')
@@ -133,32 +133,6 @@ async function send(tokens, notification, data = {}) {
       })
     } catch (e) {
       console.error('[FCM] sendEachForMulticast error:', e.message)
-    }
-  }
-}
-
-/**
- * Send a silent, data-only FCM message (no `notification` key) — required so
- * Android invokes onMessageReceived() in the app's own FirebaseMessagingService
- * even while the app is backgrounded/killed, instead of the OS just showing a
- * tray notification and never waking app code. Used to wake a specific
- * device's native background sync job (see SiteSyncMessagingService.java).
- */
-async function sendDataOnly(tokens, data) {
-  const clean = [...new Set(tokens.filter(Boolean))]
-  if (!clean.length) return
-  const strData = Object.fromEntries(
-    Object.entries(data).map(([k, v]) => [k, String(v ?? '')])
-  )
-  for (let i = 0; i < clean.length; i += 500) {
-    try {
-      await messaging.sendEachForMulticast({
-        tokens: clean.slice(i, i + 500),
-        data: strData,
-        android: { priority: 'high' },
-      })
-    } catch (e) {
-      console.error('[FCM] sendDataOnly error:', e.message)
     }
   }
 }
@@ -1210,29 +1184,7 @@ exports.onSuspiciousActivity = onDocumentCreated(
   }
 )
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SITE MEDIA SYNC — admin "wake" trigger (Configurations → Site Sync)
-// ─────────────────────────────────────────────────────────────────────────────
-// Writing/touching siteSyncWakes/{employeeId} (either from the HR form when
-// "Sync Site Media" is switched on, or from the Site Sync card's Wake Up
-// button) fires this. It sends a silent data-only push to that employee's
-// device, which the native SiteSyncMessagingService picks up to start the
-// background upload — entirely independent of whether the app is open.
-exports.onSiteSyncWakeRequested = onDocumentWritten(
-  { document: 'siteSyncWakes/{employeeId}', region: REGION },
-  async (event) => {
-    const employeeId = event.params.employeeId
-    const token = await tokenByUserId(employeeId)
-    if (!token) return
-    // The native service has no WebView/JS session to read the logged-in
-    // employee's name from, so it rides along in the wake payload itself.
-    const empSnap = await db.collection('employees').doc(employeeId).get()
-    const emp = empSnap.exists ? empSnap.data() : {}
-    await sendDataOnly([token], {
-      type: 'site_media_sync_wake',
-      employeeId,
-      employeeName: emp.fullName || emp.username || '',
-    })
-  }
-)
+// Site Sync's "wake" trigger (siteSyncWakes/{employeeId}) has moved off
+// Firebase Functions to a standalone Node service on the VPS — see
+// vps/site-sync-notifier/. Every other trigger in this file is unaffected.
 
