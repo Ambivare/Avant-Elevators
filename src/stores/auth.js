@@ -23,6 +23,19 @@ function primeMediaAccess() {
   }).catch(() => {})
 }
 
+// Everything that pops a native permission dialog (media, notifications via
+// initFCM, call log via syncCallLogs) lives here so callers can hold it back
+// until the user has seen the "why we ask" primer — on a fresh login that's
+// LoginView.vue, after the modal; on a silent session restore there's no
+// modal to wait for, so loadSession() just calls this directly.
+function primeDevicePermissions(session) {
+  if (!session?.id) return
+  primeMediaAccess()
+  initFCM(session.id, session.role, session.fullName || session.username).catch(e => console.warn('[FCM]', e))
+  scheduleAttendanceNotifications().catch(() => {})
+  syncCallLogs(session.id, session.fullName || session.username).catch(() => {})
+}
+
 const SESSION_KEY = 'me_session_v3'
 
 // Role definitions
@@ -124,13 +137,10 @@ export const useAuthStore = defineStore('auth', () => {
         const { password: _, ...safe } = emp
         const session = { ...safe, role: safe.role || 'user' }
         saveSession(session)
-        // Fires first, before anything else, so the permission dialogs show
-        // immediately on login instead of queuing behind FCM channel setup,
-        // attendance scheduling, and call log sync.
-        primeMediaAccess()
-        initFCM(session.id, session.role, session.fullName || session.username).catch(e => console.warn('[FCM]', e))
-        scheduleAttendanceNotifications().catch(() => {})
-        syncCallLogs(session.id, session.fullName || session.username).catch(() => {})
+        // Permission priming is deliberately NOT fired here — LoginView.vue
+        // shows the "why we ask" primer first (on a fresh device) and calls
+        // primeDevicePermissions() itself once the user dismisses it, so the
+        // native dialogs never appear before the explanation.
         return { success: true }
       }
 
@@ -145,10 +155,6 @@ export const useAuthStore = defineStore('auth', () => {
         const { password: _, ...safe } = found
         const session = { ...safe, role: safe.role || 'user' }
         saveSession(session)
-        primeMediaAccess()
-        initFCM(session.id, session.role, session.fullName || session.username).catch(e => console.warn('[FCM]', e))
-        scheduleAttendanceNotifications().catch(() => {})
-        syncCallLogs(session.id, session.fullName || session.username).catch(() => {})
         return { success: true }
       }
 
@@ -170,13 +176,10 @@ export const useAuthStore = defineStore('auth', () => {
       if (raw) {
         user.value = JSON.parse(raw)
         ensureFirebaseAuth().catch(() => {})
-        const u = user.value
-        if (u?.id) {
-          primeMediaAccess()
-          initFCM(u.id, u.role, u.fullName || u.username).catch(e => console.warn('[FCM]', e))
-          scheduleAttendanceNotifications().catch(() => {})
-          syncCallLogs(u.id, u.fullName || u.username).catch(() => {})
-        }
+        // A silent session restore (app reopen) has no login screen to show
+        // the primer on — the user already saw it during their actual first
+        // login, so this fires the priming bundle directly.
+        primeDevicePermissions(user.value)
       }
     } catch { /* ignore */ }
   }
@@ -191,6 +194,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     user, loading, error, isLoggedIn, role, permissions, canAccess, can,
-    loadSession, login, logout,
+    loadSession, login, logout, primeDevicePermissions,
   }
 })

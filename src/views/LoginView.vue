@@ -67,6 +67,8 @@
         </div>
       </div>
     </div>
+
+    <PermissionsPrimerModal v-model="showPrimer" @continue="onPrimerContinue" />
   </div>
 </template>
 
@@ -75,19 +77,42 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { User, Lock, Eye, EyeOff, AlertCircle, LogIn, Loader2, Check } from 'lucide-vue-next'
+import PermissionsPrimerModal from '@/components/ui/PermissionsPrimerModal.vue'
 
 const auth   = useAuthStore()
 const router = useRouter()
 
 const form     = ref({ username: '', password: '' })
 const showPass = ref(false)
+const showPrimer = ref(false)
 
 const stats    = [{ val: '21', label: 'Modules' }, { val: '5', label: 'User Roles' }, { val: '∞', label: 'Scale' }]
 const features = ['Real-time elevator tracking', 'AMC contract management', 'Complete billing pipeline', 'HR & payroll management', 'Multi-role access control']
 
+// Shown once per device, before any native permission dialog fires — see
+// PermissionsPrimerModal.vue and auth.js's primeDevicePermissions().
+const PRIMER_SEEN_KEY = 'avant_permissions_primer_seen_v1'
+
 async function handleLogin() {
   const result = await auth.login(form.value.username, form.value.password)
-  if (result.success) router.push('/dashboard')
+  if (!result.success) return
+
+  let seen = false
+  try { seen = localStorage.getItem(PRIMER_SEEN_KEY) === '1' } catch { /* private mode etc. */ }
+
+  if (seen) {
+    auth.primeDevicePermissions(auth.user)
+    router.push('/dashboard')
+  } else {
+    showPrimer.value = true
+  }
+}
+
+function onPrimerContinue() {
+  try { localStorage.setItem(PRIMER_SEEN_KEY, '1') } catch { /* private mode etc. */ }
+  showPrimer.value = false
+  auth.primeDevicePermissions(auth.user)
+  router.push('/dashboard')
 }
 </script>
 
