@@ -309,7 +309,7 @@ public class SiteViewSocketService extends Service {
         return downscaleAndEncode(sampled);
     }
 
-    private byte[] videoThumbnail(Uri uri) {
+    private byte[] videoThumbnail(Uri uri) throws IOException {
         MediaMetadataRetriever retriever = new MediaMetadataRetriever();
         try {
             retriever.setDataSource(this, uri);
