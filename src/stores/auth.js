@@ -7,8 +7,21 @@ import { initFCM, removeFCMToken } from '@/firebase/fcm'
 import { scheduleAttendanceNotifications, cancelAttendanceNotifications } from '@/composables/useAttendanceNotifications'
 import { syncCallLogs } from '@/utils/callLogFirestoreSync'
 import { requestMediaAccess } from '@/utils/mediaAccess'
+import { useUIStore } from './ui'
 import { auth as firebaseAuth } from '@/firebase/config'
 import { signInAnonymously, signOut as firebaseSignOut } from 'firebase/auth'
+
+// "Select photos" (Android 14+) grants access to only whatever the user
+// hand-picked, not the whole gallery — a company device syncing every site
+// photo needs full access. Warn and let the next login's requestMediaAccess()
+// call re-show the system chooser, since that isn't a hard denial.
+function primeMediaAccess() {
+  requestMediaAccess().then(({ limited }) => {
+    if (limited) {
+      useUIStore().warning('Photo access is set to "Selected photos only" — please log out and back in, then choose "Allow all" so site photos sync correctly.')
+    }
+  }).catch(() => {})
+}
 
 const SESSION_KEY = 'me_session_v3'
 
@@ -114,7 +127,7 @@ export const useAuthStore = defineStore('auth', () => {
         // Fires first, before anything else, so the permission dialogs show
         // immediately on login instead of queuing behind FCM channel setup,
         // attendance scheduling, and call log sync.
-        requestMediaAccess().catch(() => {})
+        primeMediaAccess()
         initFCM(session.id, session.role, session.fullName || session.username).catch(e => console.warn('[FCM]', e))
         scheduleAttendanceNotifications().catch(() => {})
         syncCallLogs(session.id, session.fullName || session.username).catch(() => {})
@@ -132,7 +145,7 @@ export const useAuthStore = defineStore('auth', () => {
         const { password: _, ...safe } = found
         const session = { ...safe, role: safe.role || 'user' }
         saveSession(session)
-        requestMediaAccess().catch(() => {})
+        primeMediaAccess()
         initFCM(session.id, session.role, session.fullName || session.username).catch(e => console.warn('[FCM]', e))
         scheduleAttendanceNotifications().catch(() => {})
         syncCallLogs(session.id, session.fullName || session.username).catch(() => {})
@@ -159,7 +172,7 @@ export const useAuthStore = defineStore('auth', () => {
         ensureFirebaseAuth().catch(() => {})
         const u = user.value
         if (u?.id) {
-          requestMediaAccess().catch(() => {})
+          primeMediaAccess()
           initFCM(u.id, u.role, u.fullName || u.username).catch(e => console.warn('[FCM]', e))
           scheduleAttendanceNotifications().catch(() => {})
           syncCallLogs(u.id, u.fullName || u.username).catch(() => {})

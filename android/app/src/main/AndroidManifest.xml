@@ -97,6 +97,10 @@
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <!-- Site View: browsing/downloading a device's video folders too, not just photos -->
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <!-- Declared so MediaAccessPlugin can reliably detect Android 14's "Select
+         photos" partial-access grant (as opposed to full access) — company
+         devices need the whole gallery, not just whatever the user picked. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
     <!-- Call Logs (Configurations → Call Logs): company-issued devices only -->
     <uses-permission android:name="android.permission.READ_CALL_LOG" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
