@@ -4,8 +4,8 @@
 // listMedia, getThumbnailUrl, downloadFile) resolves/rejects a Promise keyed
 // by a generated requestId. A file download accumulates base64 chunks until
 // the device marks its last one `done`.
-const RELAY_WS_URL = 'wss://site-view.ambivare.com/' // TODO: match vps/site-view-relay's real deployed host
-const ADMIN_SECRET = 'change-me-admin-secret' // must match the relay's ADMIN_SECRET
+const RELAY_WS_URL = 'wss://site-view.ambivare.com/'
+const ADMIN_SECRET = 'e468a9aa1499e7e801ef9c97686fbb4f1a2a32a86288728a6613a0fa5af9e144'
 
 let socket = null
 let ready = null

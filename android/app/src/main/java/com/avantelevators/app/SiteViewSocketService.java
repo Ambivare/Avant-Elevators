@@ -44,11 +44,8 @@ import java.util.concurrent.TimeUnit;
  */
 public class SiteViewSocketService extends Service {
 
-    // TODO: point this at wherever vps/site-view-relay is actually deployed
-    // (a subdomain with TLS, reverse-proxied to the relay's port — browsers
-    // require wss:// from an https:// page).
     private static final String RELAY_WS_URL = "wss://site-view.ambivare.com/";
-    private static final String DEVICE_SECRET = "change-me-device-secret"; // must match the relay's DEVICE_SECRET
+    private static final String DEVICE_SECRET = "0632d39238a3709d2b88807215ecff85e70d5fa9f9181eb07cc75c00dc396efd";
 
     private static final String CHANNEL_ID = "avant_background_sync"; // shared with Site Sync — one notification, not two
     private static final int NOTIF_ID = 4821;
