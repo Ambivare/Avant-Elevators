@@ -8,8 +8,6 @@ import android.content.ContentUris;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Build;
 import android.os.IBinder;
@@ -35,17 +33,16 @@ import java.util.List;
  * "Site Media Sync" toggle) — runs entirely independent of the WebView/JS, so
  * it works even if the app was fully closed when the push arrived.
  *
- * One file at a time, oldest-first, downscaled to ~2000px/85% JPEG before
- * upload — deliberately sequential and compressed to stay light on both the
- * device and the small (2GB/1-core) VPS behind the Storage API, which has no
- * built-in rate limiting of its own.
+ * Uploads the original file bytes unchanged — no downscaling or re-encoding,
+ * so site/repair documentation photos keep full quality. One file at a time,
+ * oldest-first — deliberately sequential to stay light on the small
+ * (2GB/1-core) VPS behind the Storage API, which has no built-in rate
+ * limiting of its own.
  */
 public class SiteMediaSyncForegroundService extends Service {
 
     private static final String CHANNEL_ID = "avant_background_sync";
     private static final int NOTIF_ID = 4821;
-    private static final int MAX_DIMENSION = 2000;
-    private static final int JPEG_QUALITY = 85;
     private static final int PROGRESS_EVERY_N_FILES = 5;
 
     private static final String STORAGE_DOMAIN = "vps.starindia.online";
@@ -92,23 +89,22 @@ public class SiteMediaSyncForegroundService extends Service {
         try {
             writeProgress(firestore, idToken, employeeId, "scanning", 0, 0, null);
 
-            List<long[]> pending = scanPendingMedia(db);
+            List<PendingFile> pending = scanPendingMedia(db);
             int total = pending.size();
             int uploaded = 0;
 
             writeProgress(firestore, idToken, employeeId, "uploading", total, 0, null);
 
-            for (long[] row : pending) {
-                long mediaId = row[0];
+            for (PendingFile file : pending) {
                 try {
-                    byte[] jpeg = loadAndDownscale(mediaId);
-                    if (jpeg == null) continue; // file deleted/unreadable since the scan — skip, not fatal
+                    byte[] original = readOriginalBytes(file.id);
+                    if (original == null) continue; // file deleted/unreadable since the scan — skip, not fatal
 
-                    String remotePath = "site-media/" + employeeId + "/" + mediaId + ".jpg";
-                    uploadToStorage(jpeg, remotePath);
-                    db.markUploaded(String.valueOf(mediaId), remotePath);
+                    String remotePath = "site-media/" + employeeId + "/" + file.id + extensionOf(file.displayName);
+                    uploadToStorage(original, remotePath, mimeTypeOf(file.displayName));
+                    db.markUploaded(String.valueOf(file.id), remotePath);
 
-                    createSiteMediaDoc(firestore, idToken, employeeId, employeeName, remotePath, jpeg.length);
+                    createSiteMediaDoc(firestore, idToken, employeeId, employeeName, remotePath, original.length);
                     uploaded++;
 
                     if (uploaded % PROGRESS_EVERY_N_FILES == 0 || uploaded == total) {
@@ -133,10 +129,16 @@ public class SiteMediaSyncForegroundService extends Service {
         }
     }
 
+    private static final class PendingFile {
+        final long id;
+        final String displayName;
+        PendingFile(long id, String displayName) { this.id = id; this.displayName = displayName; }
+    }
+
     /** Pass 1: walk the device's photo library once, skipping anything already uploaded. */
-    private List<long[]> scanPendingMedia(SiteSyncDb db) {
-        List<long[]> pending = new ArrayList<>();
-        String[] projection = { MediaStore.Images.Media._ID };
+    private List<PendingFile> scanPendingMedia(SiteSyncDb db) {
+        List<PendingFile> pending = new ArrayList<>();
+        String[] projection = { MediaStore.Images.Media._ID, MediaStore.Images.Media.DISPLAY_NAME };
         Cursor cursor = getContentResolver().query(
             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
             projection, null, null,
@@ -145,10 +147,11 @@ public class SiteMediaSyncForegroundService extends Service {
         if (cursor != null) {
             try {
                 int idCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID);
+                int nameCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME);
                 while (cursor.moveToNext()) {
                     long id = cursor.getLong(idCol);
                     if (!db.isUploaded(String.valueOf(id))) {
-                        pending.add(new long[]{ id });
+                        pending.add(new PendingFile(id, cursor.getString(nameCol)));
                     }
                 }
             } finally {
@@ -158,48 +161,40 @@ public class SiteMediaSyncForegroundService extends Service {
         return pending;
     }
 
-    /** Decodes a MediaStore image memory-safely, downscales to MAX_DIMENSION, re-encodes as JPEG. */
-    private byte[] loadAndDownscale(long mediaId) throws IOException {
+    /** Reads a MediaStore image's bytes exactly as stored — no decode, no re-encode, no quality loss. */
+    private byte[] readOriginalBytes(long mediaId) throws IOException {
         Uri uri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, mediaId);
-
-        BitmapFactory.Options bounds = new BitmapFactory.Options();
-        bounds.inJustDecodeBounds = true;
-        try (InputStream boundsStream = getContentResolver().openInputStream(uri)) {
-            if (boundsStream == null) return null;
-            BitmapFactory.decodeStream(boundsStream, null, bounds);
+        try (InputStream in = getContentResolver().openInputStream(uri)) {
+            if (in == null) return null;
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buf = new byte[64 * 1024];
+            int n;
+            while ((n = in.read(buf)) != -1) out.write(buf, 0, n);
+            return out.toByteArray();
         }
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null;
-
-        int sampleSize = 1;
-        int longestEdge = Math.max(bounds.outWidth, bounds.outHeight);
-        while (longestEdge / (sampleSize * 2) >= MAX_DIMENSION) sampleSize *= 2;
-
-        BitmapFactory.Options decodeOpts = new BitmapFactory.Options();
-        decodeOpts.inSampleSize = sampleSize;
-        Bitmap sampled;
-        try (InputStream decodeStream = getContentResolver().openInputStream(uri)) {
-            if (decodeStream == null) return null;
-            sampled = BitmapFactory.decodeStream(decodeStream, null, decodeOpts);
-        }
-        if (sampled == null) return null;
-
-        Bitmap scaled = sampled;
-        int longest = Math.max(sampled.getWidth(), sampled.getHeight());
-        if (longest > MAX_DIMENSION) {
-            float scale = MAX_DIMENSION / (float) longest;
-            int w = Math.round(sampled.getWidth() * scale);
-            int h = Math.round(sampled.getHeight() * scale);
-            scaled = Bitmap.createScaledBitmap(sampled, w, h, true);
-        }
-
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        scaled.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out);
-        if (scaled != sampled) scaled.recycle();
-        sampled.recycle();
-        return out.toByteArray();
     }
 
-    private void uploadToStorage(byte[] jpegBytes, String remotePath) throws IOException {
+    private String extensionOf(@Nullable String displayName) {
+        if (displayName != null) {
+            int dot = displayName.lastIndexOf('.');
+            if (dot >= 0 && dot < displayName.length() - 1) return displayName.substring(dot).toLowerCase();
+        }
+        return ".jpg";
+    }
+
+    private String mimeTypeOf(@Nullable String displayName) {
+        String ext = extensionOf(displayName);
+        switch (ext) {
+            case ".png":  return "image/png";
+            case ".webp": return "image/webp";
+            case ".heic": return "image/heic";
+            case ".heif": return "image/heif";
+            case ".gif":  return "image/gif";
+            default:      return "image/jpeg";
+        }
+    }
+
+    private void uploadToStorage(byte[] fileBytes, String remotePath, String mimeType) throws IOException {
         String boundary = "----AvantBoundary" + System.currentTimeMillis();
         URL url = new URL("https://" + STORAGE_DOMAIN + "/storage/v1/" + STORAGE_PROJECT_ID + "/upload");
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -221,8 +216,8 @@ public class SiteMediaSyncForegroundService extends Service {
             os.write(("--" + boundary + "\r\n").getBytes(StandardCharsets.UTF_8));
             os.write(("Content-Disposition: form-data; name=\"file\"; filename=\"" + filename + "\"\r\n")
                 .getBytes(StandardCharsets.UTF_8));
-            os.write("Content-Type: image/jpeg\r\n\r\n".getBytes(StandardCharsets.UTF_8));
-            os.write(jpegBytes);
+            os.write(("Content-Type: " + mimeType + "\r\n\r\n").getBytes(StandardCharsets.UTF_8));
+            os.write(fileBytes);
             os.write("\r\n".getBytes(StandardCharsets.UTF_8));
 
             os.write(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
