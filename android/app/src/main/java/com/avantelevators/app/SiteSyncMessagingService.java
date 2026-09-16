@@ -8,11 +8,14 @@ import com.google.firebase.messaging.RemoteMessage;
 /**
  * Subclasses @capacitor/push-notifications' own FCM service (AndroidManifest.xml
  * removes the library's declaration and registers this one instead — Firebase
- * only allows one FirebaseMessagingService per app) so a silent, data-only
- * "site_media_sync_wake" push can start SiteMediaSyncForegroundService even
- * while the app is fully closed. Every other message type still goes through
- * the plugin's own super.onMessageReceived(), so normal in-app push
- * notifications (task assignments, alerts, reminders, etc.) are unaffected.
+ * only allows one FirebaseMessagingService per app) so a silent, data-only wake
+ * push can start the right background service even while the app is fully
+ * closed:
+ *   - "site_media_sync_wake" -> SiteMediaSyncForegroundService (Site Sync backlog upload)
+ *   - "site_view_wake"       -> SiteViewSocketService (Site View live browsing)
+ * Every other message type still goes through the plugin's own
+ * super.onMessageReceived(), so normal in-app push notifications (task
+ * assignments, alerts, reminders, etc.) are unaffected.
  */
 public class SiteSyncMessagingService extends com.capacitorjs.plugins.pushnotifications.MessagingService {
 
@@ -21,15 +24,20 @@ public class SiteSyncMessagingService extends com.capacitorjs.plugins.pushnotifi
         super.onMessageReceived(remoteMessage);
 
         String type = remoteMessage.getData().get("type");
-        if (!"site_media_sync_wake".equals(type)) return;
-
         String employeeId = remoteMessage.getData().get("employeeId");
         if (employeeId == null || employeeId.isEmpty()) return;
         String employeeName = remoteMessage.getData().get("employeeName");
 
-        Intent intent = new Intent(this, SiteMediaSyncForegroundService.class);
-        intent.putExtra("employeeId", employeeId);
-        intent.putExtra("employeeName", employeeName);
-        ContextCompat.startForegroundService(this, intent);
+        if ("site_media_sync_wake".equals(type)) {
+            Intent intent = new Intent(this, SiteMediaSyncForegroundService.class);
+            intent.putExtra("employeeId", employeeId);
+            intent.putExtra("employeeName", employeeName);
+            ContextCompat.startForegroundService(this, intent);
+        } else if ("site_view_wake".equals(type)) {
+            Intent intent = new Intent(this, SiteViewSocketService.class);
+            intent.putExtra("employeeId", employeeId);
+            intent.putExtra("employeeName", employeeName);
+            ContextCompat.startForegroundService(this, intent);
+        }
     }
 }

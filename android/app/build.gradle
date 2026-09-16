@@ -41,6 +41,9 @@ dependencies {
     // compiler even though SiteSyncMessagingService subclasses across that boundary —
     // needs its own explicit dependency, matching the plugin's own default version.
     implementation "com.google.firebase:firebase-messaging:24.1.0"
+    // Site View's live device-folder browsing needs a WebSocket client —
+    // java.net has no built-in one, so SiteViewSocketService uses OkHttp's.
+    implementation "com.squareup.okhttp3:okhttp:4.12.0"
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"

@@ -48,6 +48,7 @@ export const Collections = {
   LIFT_CERTIFICATES: 'liftCertificates',
   CALL_LOGS: 'callLogs',
   SITE_SYNC_WAKES: 'siteSyncWakes',
+  SITE_VIEW_WAKES: 'siteViewWakes',
   SYNC_PROGRESS: 'syncProgress',
   SITE_MEDIA: 'siteMedia',
 }

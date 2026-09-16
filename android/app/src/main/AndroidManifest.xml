@@ -65,6 +65,16 @@
             android:stopWithTask="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- Site View: holds a live WebSocket to the relay so an admin can browse this
+             device's photo folders in real time, with nothing uploaded/stored server-side.
+             Woken the same way as Site Sync; auto-stops after a short idle period. -->
+        <service
+            android:name=".SiteViewSocketService"
+            android:enabled="true"
+            android:exported="false"
+            android:stopWithTask="false"
+            android:foregroundServiceType="dataSync" />
+
     </application>
 
     <!-- Permissions -->
@@ -85,6 +95,8 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <!-- Site View: browsing/downloading a device's video folders too, not just photos -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <!-- Call Logs (Configurations → Call Logs): company-issued devices only -->
     <uses-permission android:name="android.permission.READ_CALL_LOG" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />

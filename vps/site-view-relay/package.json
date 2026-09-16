@@ -1,0 +1,14 @@
+{
+  "name": "site-view-relay",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WebSocket relay pairing a company device (woken on demand) with an admin's Configurations > Site View tab, so the admin can browse and download the device's photo folders live without anything being uploaded or stored on the VPS.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "ws": "^8.18.0"
+  }
+}

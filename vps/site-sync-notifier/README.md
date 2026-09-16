@@ -1,12 +1,18 @@
 # Site Sync Notifier
 
 Standalone Node service that replaces the Firebase Cloud Function
-`onSiteSyncWakeRequested`. It watches `siteSyncWakes/{employeeId}` in
-Firestore in real time and sends the silent FCM push that wakes a
-company device's native background photo sync (see the main app's
-`SiteSyncMessagingService.java`). Everything else in this project's
-notification system (tasks, leads, complaints, AMC, attendance, etc.)
-is unaffected — that all still runs on Firebase Functions as before.
+`onSiteSyncWakeRequested`. It watches two Firestore collections in real
+time and sends the matching silent FCM push:
+
+- `siteSyncWakes/{employeeId}` → wakes the device's background photo
+  backlog upload (Site Sync).
+- `siteViewWakes/{employeeId}` → wakes the device's live folder-browsing
+  socket (Site View — see `vps/site-view-relay`).
+
+Both land in the app's `SiteSyncMessagingService.java`, which starts the
+right foreground service. Everything else in this project's notification
+system (tasks, leads, complaints, AMC, attendance, etc.) is unaffected —
+that all still runs on Firebase Functions as before.
 
 ## 1. Get a Firebase service account key
 
@@ -64,18 +70,22 @@ pm2 status                      # confirm it's "online"
 
 1. `pm2 logs site-sync-notifier` should show:
    ```
-   [Site Sync Notifier] starting — watching siteSyncWakes/*
-   [Site Sync Notifier] ready
+   [Wake Notifier] starting
+   [Wake Notifier] watching siteSyncWakes/*
+   [Wake Notifier] watching siteViewWakes/*
+   [Wake Notifier] ready
    ```
 2. In the Avant Elevators app, toggle "Site Media Sync" on for an
    employee (HR form) or press "Wake Up & Sync" on their card
-   (Configurations → Site Sync). The log should immediately show:
+   (Configurations → Site Sync), or click a card in Configurations →
+   Site View. The log should immediately show:
    ```
-   [wake sent] <employee name>
+   [Site Sync] wake sent -> <employee name>
+   [Site View] wake sent -> <employee name>
    ```
-3. If you see `no FCM token on file for employee ...`, that employee's
-   device hasn't logged in / registered a push token yet — not a bug in
-   this service.
+3. If you see `skip — no FCM token on file for employee ...`, that
+   employee's device hasn't logged in / registered a push token yet —
+   not a bug in this service.
 
 ## Updating
 

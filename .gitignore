@@ -39,3 +39,6 @@ functions/.env
 # vps/site-sync-notifier — never commit the Firebase admin credential or local env
 vps/site-sync-notifier/.env
 vps/site-sync-notifier/service-account*.json
+
+# vps/site-view-relay — never commit local secrets
+vps/site-view-relay/.env

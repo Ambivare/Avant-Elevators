@@ -881,6 +881,110 @@
     </div>
   </div>
 
+  <!-- ── Site View (live device folder browsing, nothing stored) ── -->
+  <div v-if="activeTab === 'site-view'" class="config-section">
+    <div class="section-header">
+      <Smartphone :size="18" />
+      <div>
+        <div class="section-title">Site View</div>
+        <div class="section-sub">Wake a device and browse its photo/video folders live — nothing is uploaded or stored unless you download a file.</div>
+      </div>
+    </div>
+
+    <div v-if="siteSyncLoading" style="padding:24px;text-align:center;color:var(--ct-muted);font-size:13px;">
+      <Loader2 :size="18" style="animation:spin 1s linear infinite;display:inline-block;" /> Loading employees…
+    </div>
+
+    <!-- Employee picker -->
+    <template v-else-if="!siteViewEmployee">
+      <div v-if="!siteSyncEmployees.length" style="padding:24px;text-align:center;color:var(--ct-muted);font-size:13px;">
+        No employees found.
+      </div>
+      <div v-else style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;">
+        <div
+          v-for="emp in siteSyncEmployees"
+          :key="emp.id"
+          class="glass"
+          style="padding:16px;border-radius:12px;cursor:pointer;text-align:center;"
+          @click="openSiteView(emp)"
+        >
+          <Smartphone :size="28" style="color:var(--ct-accent);margin-bottom:8px;" />
+          <div style="font-size:13px;font-weight:600;color:var(--ct-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ emp.fullName || emp.username }}</div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Connected session: waking → folders → media -->
+    <template v-else>
+      <button class="btn-secondary btn-sm" style="margin-bottom:16px;" @click="closeSiteView">
+        <X :size="13" /> Close Connection
+      </button>
+
+      <div style="font-size:13px;font-weight:600;color:var(--ct-primary);margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+        {{ siteViewEmployee.fullName || siteViewEmployee.username }}
+        <span :class="['badge', siteViewOnline ? 'badge-active' : 'badge-warning']" style="font-size:10px;">
+          {{ siteViewOnline ? 'Connected' : 'Waking device…' }}
+        </span>
+      </div>
+
+      <div v-if="!siteViewOnline" style="padding:24px;text-align:center;color:var(--ct-muted);font-size:13px;">
+        <Loader2 :size="18" style="animation:spin 1s linear infinite;display:inline-block;" />
+        Waiting for the device to come online — make sure it has a signal. This can take a few seconds.
+      </div>
+
+      <template v-else-if="!siteViewBucket">
+        <div v-if="siteViewFoldersLoading" style="padding:24px;text-align:center;color:var(--ct-muted);font-size:13px;">
+          <Loader2 :size="18" style="animation:spin 1s linear infinite;display:inline-block;" /> Loading folders…
+        </div>
+        <div v-else-if="!siteViewFolders.length" style="padding:24px;text-align:center;color:var(--ct-muted);font-size:13px;">
+          No photo/video folders found on this device.
+        </div>
+        <div v-else style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;">
+          <div
+            v-for="f in siteViewFolders"
+            :key="f.bucket"
+            class="glass"
+            style="padding:18px;border-radius:12px;cursor:pointer;text-align:center;"
+            @click="openSiteViewFolder(f.bucket)"
+          >
+            <Folder :size="32" style="color:var(--ct-accent);margin-bottom:8px;" />
+            <div style="font-size:13px;font-weight:600;color:var(--ct-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ f.bucket }}</div>
+            <div style="font-size:11px;color:var(--ct-muted);margin-top:2px;">{{ f.count }} file{{ f.count === 1 ? '' : 's' }}</div>
+          </div>
+        </div>
+      </template>
+
+      <template v-else>
+        <button class="btn-secondary btn-sm" style="margin-bottom:16px;" @click="siteViewBucket = null">
+          <ArrowLeft :size="13" /> All Folders
+        </button>
+        <div v-if="siteViewMediaLoading" style="padding:24px;text-align:center;color:var(--ct-muted);font-size:13px;">
+          <Loader2 :size="18" style="animation:spin 1s linear infinite;display:inline-block;" /> Loading {{ siteViewBucket }}…
+        </div>
+        <div v-else-if="!siteViewMedia.length" style="padding:24px;text-align:center;color:var(--ct-muted);font-size:13px;">
+          No files in this folder.
+        </div>
+        <div v-else style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;">
+          <div v-for="item in siteViewMedia" :key="item.id" class="glass" style="border-radius:12px;overflow:hidden;">
+            <div style="width:100%;height:120px;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;">
+              <img v-if="siteViewThumbs[item.id]" :src="siteViewThumbs[item.id]" style="width:100%;height:120px;object-fit:cover;display:block;" />
+              <Video v-else-if="item.kind === 'video'" :size="24" style="color:var(--ct-muted);" />
+              <Images v-else :size="24" style="color:var(--ct-muted);" />
+            </div>
+            <div style="padding:8px 10px;">
+              <div style="font-size:11px;color:var(--ct-sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" :title="item.name">{{ item.name }}</div>
+              <div style="font-size:10px;color:var(--ct-muted);margin-top:2px;">{{ formatBytes(item.size) }}</div>
+              <button class="btn-secondary btn-sm" style="width:100%;justify-content:center;margin-top:8px;" :disabled="siteViewDownloading.has(item.id)" @click="downloadSiteViewFile(item)">
+                <Loader2 v-if="siteViewDownloading.has(item.id)" :size="12" style="animation:spin 1s linear infinite;" />
+                <Download v-else :size="12" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </template>
+    </template>
+  </div>
+
   <!-- ── Nav Tab Visibility ── -->
   <div v-if="activeTab === 'navtabs'" class="config-section">
     <div class="section-header">
@@ -1028,7 +1132,8 @@ import {
   Settings2, Bot, Building2, FileText, Save, Loader2,
   Eye, EyeOff, Upload, LayoutGrid, Map as MapIcon, FileCode, MapPin,
   Mail as MailIcon, CheckCircle, XCircle, CheckSquare, Plus, Pencil, Trash2,
-  Images, Folder, Download, ArrowLeft, PhoneCall, PhoneIncoming, PhoneOutgoing, PhoneMissed, UploadCloud
+  Images, Folder, Download, ArrowLeft, PhoneCall, PhoneIncoming, PhoneOutgoing, PhoneMissed, UploadCloud,
+  Smartphone, Video, X
 } from 'lucide-vue-next'
 import { ref as storageRef, deleteObject } from 'firebase/storage'
 import { mediaStorage } from '@/firebase/storage-config'
@@ -1045,6 +1150,7 @@ import { useEnabledTabs } from '@/composables/useEnabledTabs'
 import { useTrackingConfig } from '@/composables/useTrackingConfig'
 import { clearBillingPDFCache } from '@/composables/useBillingPDF'
 import { fetchStorageThumbnail } from '@/composables/useSiteMediaStorage'
+import { watchEmployee, unwatchEmployee, listFolders, listMedia, getThumbnailUrl, downloadFile } from '@/composables/useSiteViewRelay'
 import { ROLES } from '@/stores/auth'
 
 const ui = useUIStore()
@@ -1203,7 +1309,7 @@ let siteSyncLoaded = false
 let siteSyncUnsub = null
 const _siteSyncThumbSeen = {} // employeeId -> last currentThumbnailUrl already fetched, avoids re-fetching on every progress tick
 
-watch(activeTab, (val) => { if (val === 'site-sync') loadSiteSync() })
+watch(activeTab, (val) => { if (val === 'site-sync' || val === 'site-view') loadSiteSync() })
 
 function siteSyncProgressPct(employeeId) {
   const p = siteSyncProgress.value[employeeId]
@@ -1266,7 +1372,106 @@ async function wakeSiteSyncDevice(emp) {
 onUnmounted(() => {
   if (siteSyncUnsub) siteSyncUnsub()
   for (const url of Object.values(siteSyncThumbnails.value)) URL.revokeObjectURL(url)
+  closeSiteView()
 })
+
+// ── Site View (live device folder browsing, nothing stored) ────────────────────
+const siteViewEmployee = ref(null)
+const siteViewOnline = ref(false)
+const siteViewFolders = ref([])
+const siteViewFoldersLoading = ref(false)
+const siteViewBucket = ref(null)
+const siteViewMedia = ref([])
+const siteViewMediaLoading = ref(false)
+const siteViewThumbs = ref({})
+const siteViewDownloading = ref(new Set())
+let _siteViewStatusHandler = null
+
+async function openSiteView(emp) {
+  siteViewEmployee.value = emp
+  siteViewOnline.value = false
+  siteViewFolders.value = []
+  siteViewBucket.value = null
+  siteViewMedia.value = []
+  siteViewThumbs.value = {}
+
+  try {
+    await setDoc(doc(db, Collections.SITE_VIEW_WAKES, emp.id), { requestedAt: serverTimestamp() })
+  } catch {
+    ui.error('Failed to send wake request')
+    siteViewEmployee.value = null
+    return
+  }
+
+  _siteViewStatusHandler = ({ online }) => {
+    siteViewOnline.value = online
+    if (online && !siteViewFolders.value.length) loadSiteViewFolders()
+  }
+  watchEmployee(emp.id, _siteViewStatusHandler).catch(() => ui.error('Failed to connect to the relay'))
+}
+
+function closeSiteView() {
+  if (siteViewEmployee.value && _siteViewStatusHandler) {
+    unwatchEmployee(siteViewEmployee.value.id, _siteViewStatusHandler)
+  }
+  _siteViewStatusHandler = null
+  siteViewEmployee.value = null
+  siteViewOnline.value = false
+  siteViewFolders.value = []
+  siteViewBucket.value = null
+  siteViewMedia.value = []
+  siteViewThumbs.value = {}
+}
+
+async function loadSiteViewFolders() {
+  siteViewFoldersLoading.value = true
+  try {
+    siteViewFolders.value = await listFolders(siteViewEmployee.value.id)
+  } catch (e) {
+    ui.error(e.message || 'Failed to load folders')
+  } finally {
+    siteViewFoldersLoading.value = false
+  }
+}
+
+async function openSiteViewFolder(bucket) {
+  siteViewBucket.value = bucket
+  siteViewMediaLoading.value = true
+  siteViewMedia.value = []
+  siteViewThumbs.value = {}
+  try {
+    siteViewMedia.value = await listMedia(siteViewEmployee.value.id, bucket)
+    for (const item of siteViewMedia.value) {
+      getThumbnailUrl(siteViewEmployee.value.id, item.id)
+        .then((url) => { siteViewThumbs.value = { ...siteViewThumbs.value, [item.id]: url } })
+        .catch(() => {}) // a failed thumbnail just falls back to the placeholder icon
+    }
+  } catch (e) {
+    ui.error(e.message || 'Failed to load folder')
+  } finally {
+    siteViewMediaLoading.value = false
+  }
+}
+
+async function downloadSiteViewFile(item) {
+  siteViewDownloading.value = new Set(siteViewDownloading.value).add(item.id)
+  try {
+    await downloadFile(siteViewEmployee.value.id, item.id, item.name)
+  } catch (e) {
+    ui.error(e.message || 'Download failed')
+  } finally {
+    const next = new Set(siteViewDownloading.value)
+    next.delete(item.id)
+    siteViewDownloading.value = next
+  }
+}
+
+function formatBytes(bytes) {
+  const n = Number(bytes) || 0
+  if (n < 1024) return `${n} B`
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`
+}
 
 function formatPhotoTimestamp(ts) {
   if (!ts) return '—'
@@ -1551,6 +1756,7 @@ const tabs = [
   { key: 'employee-photos',    label: 'All Photos',          icon: Images },
   { key: 'call-logs',          label: 'Call Logs',           icon: PhoneCall },
   { key: 'site-sync',          label: 'Site Sync',           icon: UploadCloud },
+  { key: 'site-view',          label: 'Site View',           icon: Smartphone },
 ]
 
 // All navigable tabs that can be toggled

@@ -1,10 +1,13 @@
-// Site Sync's "wake" notifier — standalone replacement for the Firebase
-// Cloud Function (functions/index.js's former onSiteSyncWakeRequested).
-// Watches siteSyncWakes/{employeeId} in Firestore in real time and sends a
-// silent, data-only FCM push to that employee's device, which the native
-// SiteSyncMessagingService (Android) picks up to start the background photo
-// upload — same trigger, same payload shape, just running on the VPS
-// instead of on Firebase's metered Functions runtime.
+// Wake notifier for Avant Elevators' device-facing background features —
+// standalone replacement for the Firebase Cloud Function that used to send
+// these pushes (functions/index.js's former onSiteSyncWakeRequested).
+// Watches two Firestore collections in real time and sends the matching
+// silent, data-only FCM push:
+//   - siteSyncWakes/{employeeId}  -> "site_media_sync_wake"  (Site Sync backlog upload)
+//   - siteViewWakes/{employeeId}  -> "site_view_wake"        (Site View live browse)
+// The device's SiteSyncMessagingService (Android) picks either up and starts
+// the matching foreground service — same trigger shape as before, just
+// running on the VPS instead of on Firebase's metered Functions runtime.
 //
 // Run with: pm2 start index.js --name site-sync-notifier
 require('dotenv').config()
@@ -14,7 +17,7 @@ const admin = require('firebase-admin')
 
 const SERVICE_ACCOUNT_PATH = process.env.FIREBASE_SERVICE_ACCOUNT_PATH
 if (!SERVICE_ACCOUNT_PATH) {
-  console.error('[Site Sync Notifier] FIREBASE_SERVICE_ACCOUNT_PATH is not set — see .env.example')
+  console.error('[Wake Notifier] FIREBASE_SERVICE_ACCOUNT_PATH is not set — see .env.example')
   process.exit(1)
 }
 
@@ -36,11 +39,11 @@ async function tokenByEmployeeId(employeeId) {
   return snap.exists ? (snap.data().token || null) : null
 }
 
-async function handleWake(employeeId) {
+async function sendWake(label, wakeType, employeeId) {
   try {
     const token = await tokenByEmployeeId(employeeId)
     if (!token) {
-      log(`[skip] no FCM token on file for employee ${employeeId}`)
+      log(`[${label}] skip — no FCM token on file for employee ${employeeId}`)
       return
     }
 
@@ -56,45 +59,53 @@ async function handleWake(employeeId) {
       // while the app is backgrounded/killed, instead of the OS just
       // showing a tray notification and never waking app code.
       data: {
-        type: 'site_media_sync_wake',
+        type: wakeType,
         employeeId,
         employeeName: emp.fullName || emp.username || '',
       },
       android: { priority: 'high' },
     })
-    log(`[wake sent] ${emp.fullName || emp.username || employeeId}`)
+    log(`[${label}] wake sent -> ${emp.fullName || emp.username || employeeId}`)
   } catch (e) {
-    console.error(`[Site Sync Notifier] wake failed for ${employeeId}:`, e.message)
+    console.error(`[${label}] wake failed for ${employeeId}:`, e.message)
   }
 }
 
-log('[Site Sync Notifier] starting — watching siteSyncWakes/*')
-
-const unsubscribe = db.collection('siteSyncWakes').onSnapshot(
-  (snapshot) => {
-    for (const change of snapshot.docChanges()) {
-      // Mirrors the old onDocumentWritten trigger: fires on both a fresh
-      // wake request and a repeat one (re-pressing "Wake Up & Sync").
-      if (change.type === 'added' || change.type === 'modified') {
-        handleWake(change.doc.id)
+function watchWakeCollection(collectionName, label, wakeType) {
+  log(`[Wake Notifier] watching ${collectionName}/*`)
+  return db.collection(collectionName).onSnapshot(
+    (snapshot) => {
+      for (const change of snapshot.docChanges()) {
+        // Mirrors the old onDocumentWritten trigger: fires on both a fresh
+        // wake request and a repeat one (re-clicking Wake Up / a folder).
+        if (change.type === 'added' || change.type === 'modified') {
+          sendWake(label, wakeType, change.doc.id)
+        }
       }
+    },
+    (err) => {
+      // A listener error (expired credentials, revoked service account key,
+      // network partition) leaves this stream dead — exit so PM2 restarts
+      // the whole process and re-establishes fresh listeners, rather than
+      // silently running with one or both watches dead.
+      console.error(`[Wake Notifier] ${collectionName} listener error, exiting for restart:`, err.message)
+      process.exit(1)
     }
-  },
-  (err) => {
-    // A listener error (expired credentials, revoked service account key,
-    // network partition) leaves this stream dead — exit so PM2 restarts the
-    // whole process and re-establishes a fresh listener, rather than
-    // silently running with no active watch.
-    console.error('[Site Sync Notifier] Firestore listener error, exiting for restart:', err.message)
-    process.exit(1)
-  }
-)
+  )
+}
 
-log('[Site Sync Notifier] ready')
+log('[Wake Notifier] starting')
+
+const unsubscribers = [
+  watchWakeCollection('siteSyncWakes', 'Site Sync', 'site_media_sync_wake'),
+  watchWakeCollection('siteViewWakes', 'Site View', 'site_view_wake'),
+]
+
+log('[Wake Notifier] ready')
 
 function shutdown() {
-  log('[Site Sync Notifier] shutting down')
-  unsubscribe()
+  log('[Wake Notifier] shutting down')
+  unsubscribers.forEach((unsub) => unsub())
   process.exit(0)
 }
 

@@ -162,6 +162,7 @@ service cloud.firestore {
     match /liftCertificates/{docId}        { allow read, write: if isAuthed(); }
     match /callLogs/{docId}                { allow read, write: if isAuthed(); }
     match /siteSyncWakes/{docId}           { allow read, write: if isAuthed(); }
+    match /siteViewWakes/{docId}           { allow read, write: if isAuthed(); }
     match /syncProgress/{docId}            { allow read, write: if isAuthed(); }
     match /siteMedia/{docId}               { allow read, write: if isAuthed(); }
 
