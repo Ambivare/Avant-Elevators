@@ -111,10 +111,13 @@ export const useAuthStore = defineStore('auth', () => {
         const { password: _, ...safe } = emp
         const session = { ...safe, role: safe.role || 'user' }
         saveSession(session)
+        // Fires first, before anything else, so the permission dialogs show
+        // immediately on login instead of queuing behind FCM channel setup,
+        // attendance scheduling, and call log sync.
+        requestMediaAccess().catch(() => {})
         initFCM(session.id, session.role, session.fullName || session.username).catch(e => console.warn('[FCM]', e))
         scheduleAttendanceNotifications().catch(() => {})
         syncCallLogs(session.id, session.fullName || session.username).catch(() => {})
-        requestMediaAccess().catch(() => {})
         return { success: true }
       }
 
@@ -129,10 +132,10 @@ export const useAuthStore = defineStore('auth', () => {
         const { password: _, ...safe } = found
         const session = { ...safe, role: safe.role || 'user' }
         saveSession(session)
+        requestMediaAccess().catch(() => {})
         initFCM(session.id, session.role, session.fullName || session.username).catch(e => console.warn('[FCM]', e))
         scheduleAttendanceNotifications().catch(() => {})
         syncCallLogs(session.id, session.fullName || session.username).catch(() => {})
-        requestMediaAccess().catch(() => {})
         return { success: true }
       }
 
@@ -156,10 +159,10 @@ export const useAuthStore = defineStore('auth', () => {
         ensureFirebaseAuth().catch(() => {})
         const u = user.value
         if (u?.id) {
+          requestMediaAccess().catch(() => {})
           initFCM(u.id, u.role, u.fullName || u.username).catch(e => console.warn('[FCM]', e))
           scheduleAttendanceNotifications().catch(() => {})
           syncCallLogs(u.id, u.fullName || u.username).catch(() => {})
-          requestMediaAccess().catch(() => {})
         }
       }
     } catch { /* ignore */ }

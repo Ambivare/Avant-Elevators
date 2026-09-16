@@ -834,7 +834,7 @@
       <UploadCloud :size="18" />
       <div>
         <div class="section-title">Site Sync</div>
-        <div class="section-sub">Wake a company device to back up its site/repair photos to storage. Enable "Site Media Sync" for an employee in HR first.</div>
+        <div class="section-sub">Wake a company device to back up its site/repair photos to storage. Enable "Sync Sites" for an employee in HR first.</div>
       </div>
     </div>
 
@@ -875,7 +875,7 @@
           </button>
         </template>
         <div v-else style="margin-top:12px;font-size:11px;color:var(--ct-muted);">
-          Enable "Site Media Sync" for this employee in HR to use this.
+          Enable "Sync Sites" for this employee in HR to use this.
         </div>
       </div>
     </div>

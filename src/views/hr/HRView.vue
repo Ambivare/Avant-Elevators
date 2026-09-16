@@ -351,10 +351,10 @@
           <input v-model="form.bankIfsc" class="input" placeholder="SBIN0001234" />
         </div>
         <div class="form-group form-full">
-          <label class="label">Site Media Sync</label>
+          <label class="label">Sync Sites</label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ct-sub,#555);cursor:pointer;">
             <input type="checkbox" v-model="form.syncSiteMedia" style="width:16px;height:16px;" />
-            Sync this employee's device photos (site/repair images) to company storage
+            Sync Sites
           </label>
         </div>
       </div>
