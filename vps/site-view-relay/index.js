@@ -57,7 +57,11 @@ function broadcastToWatchers(employeeId, obj) {
   for (const adminSocket of watchers) sendJson(adminSocket, obj)
 }
 
-const wss = new WebSocketServer({ port: PORT })
+// Bound to localhost only — the reverse proxy (Caddy/nginx) is the only
+// thing that should ever reach this directly. Without this, anyone who can
+// reach this VPS on PORT could connect over plaintext ws://, bypassing TLS
+// and the proxy entirely.
+const wss = new WebSocketServer({ port: PORT, host: '127.0.0.1' })
 
 wss.on('connection', (socket) => {
   socket.role = null
