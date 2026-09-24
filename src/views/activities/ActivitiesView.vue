@@ -8,13 +8,24 @@
         </h1>
         <p class="page-sub">Every action, every change — the complete system-wide audit trail.</p>
       </div>
-      <button class="btn-secondary" @click="loadActivities" :disabled="activityLoading">
+      <button v-if="section === 'log'" class="btn-secondary" @click="loadActivities" :disabled="activityLoading">
         <Loader2 v-if="activityLoading" :size="14" style="animation:spin 1s linear infinite;" />
         <RefreshCw v-else :size="14" />
         Refresh
       </button>
     </div>
 
+    <!-- Sub-tabs -->
+    <div class="act-tabs">
+      <button class="act-tab" :class="{ active: section === 'log' }" @click="section = 'log'">
+        <Activity :size="15" /> Activity Log
+      </button>
+      <button class="act-tab" :class="{ active: section === 'project' }" @click="section = 'project'">
+        <FolderKanban :size="15" /> Project Activities
+      </button>
+    </div>
+
+    <template v-if="section === 'log'">
     <!-- Stats -->
     <div class="stats-row">
       <div class="stat-card"><div class="stat-val accent">{{ activityStore.activities.length }}</div><div class="stat-lbl">Total</div></div>
@@ -162,20 +173,138 @@
         <button class="page-btn" :disabled="page>=totalPages" @click="page++"><ChevronRight :size="14"/></button>
       </div>
     </div>
+    </template>
+
+    <!-- ══════════════════ Project Activities ══════════════════ -->
+    <template v-else>
+      <div class="proj-search-bar">
+        <div class="search-box" style="flex:1;min-width:220px;position:relative;">
+          <Search :size="14" class="search-icon" />
+          <input
+            v-model="projectSearch"
+            class="input"
+            placeholder="Search project by name, client or city…"
+            @focus="showProjectDropdown = true"
+            @blur="delayCloseProjectDropdown"
+          />
+          <div v-if="showProjectDropdown && filteredProjectsForSearch.length" class="proj-dd">
+            <div
+              v-for="p in filteredProjectsForSearch"
+              :key="p.id"
+              class="proj-dd-item"
+              :class="{ active: selectedProjectId === p.id }"
+              @mousedown.prevent="selectProject(p)"
+            >
+              <div class="proj-dd-name">{{ p.projectName }}</div>
+              <div class="proj-dd-sub">{{ p.clientName || '—' }} · {{ p.city || p.address || '—' }}</div>
+            </div>
+          </div>
+        </div>
+        <button
+          class="btn-primary"
+          :disabled="!selectedProjectId || pdfGenerating || projectDataLoading"
+          @click="downloadProjectReport"
+        >
+          <Loader2 v-if="pdfGenerating" :size="14" style="animation:spin 1s linear infinite;" />
+          <FileDown v-else :size="14" />
+          {{ pdfGenerating ? 'Generating…' : 'Download PDF Report' }}
+        </button>
+      </div>
+
+      <div v-if="!selectedProjectId" class="empty-state">
+        <FolderKanban :size="40" />
+        <p>Search and select a project above to see everything linked to it.</p>
+      </div>
+
+      <div v-else-if="projectDataLoading" style="text-align:center;padding:60px;color:var(--ct-muted);">
+        <Loader2 :size="28" style="animation:spin 1s linear infinite;" />
+        <div style="margin-top:12px;font-size:13px;">Loading project activities…</div>
+      </div>
+
+      <div v-else>
+        <!-- Project summary card -->
+        <div class="proj-summary-card">
+          <div class="proj-summary-main">
+            <div class="proj-summary-name">{{ selectedProject.projectName }}</div>
+            <div class="proj-summary-sub">{{ selectedProject.clientName || '—' }} · {{ selectedProject.address || selectedProject.city || '—' }}</div>
+          </div>
+          <div class="proj-summary-stats">
+            <div v-for="s in projectStatSummary" :key="s.label" class="proj-summary-stat">
+              <div class="proj-summary-stat-val">{{ s.count }}</div>
+              <div class="proj-summary-stat-lbl">{{ s.label }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Record sections -->
+        <div v-for="group in projectRecordGroups" :key="group.key" class="proj-section">
+          <div class="proj-section-head">
+            <component :is="group.icon" :size="16" :style="{ color: group.color }" />
+            <span class="proj-section-title">{{ group.label }}</span>
+            <span class="proj-section-count">{{ group.records.length }}</span>
+          </div>
+          <div v-if="!group.records.length" class="proj-section-empty">No {{ group.label.toLowerCase() }} for this project.</div>
+          <div v-else class="proj-record-list">
+            <div
+              v-for="rec in group.records"
+              :key="rec.id"
+              class="proj-record-card"
+              :class="{ expanded: expandedRecordId === rec.id }"
+              @click="expandedRecordId = expandedRecordId === rec.id ? null : rec.id"
+            >
+              <div class="proj-record-row">
+                <span class="status-pill" :class="statusPillClass(rec.status)">{{ formatStatusLabel(rec.status) }}</span>
+                <div class="proj-record-title">{{ rec.title }}</div>
+                <div class="proj-record-meta">
+                  <span v-if="rec.person">{{ rec.person }}</span>
+                  <span class="proj-record-date">{{ fmtDateShort(rec.date) }}</span>
+                </div>
+                <ChevronDown :size="14" class="expand-icon" :class="{ rotated: expandedRecordId === rec.id }" />
+              </div>
+              <transition name="expand">
+                <div v-if="expandedRecordId === rec.id" class="proj-record-details" @click.stop>
+                  <div class="details-grid">
+                    <template v-for="(val, key) in rec.details" :key="key">
+                      <div class="detail-key">{{ key }}</div>
+                      <div class="detail-val">{{ val }}</div>
+                    </template>
+                  </div>
+                  <!-- Nested AMC visits -->
+                  <div v-if="rec.visits && rec.visits.length" class="proj-nested-visits">
+                    <div class="proj-nested-head">Maintenance Visits ({{ rec.visits.length }})</div>
+                    <div v-for="v in rec.visits" :key="v.id" class="proj-nested-row">
+                      <span>{{ v.monthKey || '—' }}</span>
+                      <span>{{ fmtDateShort(v.date) }}</span>
+                      <span>{{ v.technician || '—' }}</span>
+                      <span class="proj-nested-remarks">{{ v.remarks || '—' }}</span>
+                    </div>
+                  </div>
+                </div>
+              </transition>
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import {
   Activity, Search, RefreshCw, ChevronLeft, ChevronRight, ChevronDown,
   Plus, Pencil, Trash2, CheckCircle, XCircle, RotateCcw, Upload,
   FileText, DollarSign, AlertCircle, Settings, LogIn, LogOut, Loader2,
+  FolderKanban, FileDown, MessageSquareWarning, HardHat, Hammer, Wrench, ShieldCheck,
 } from 'lucide-vue-next'
 import { useActivityStore } from '@/stores/activity'
 import { useAuthStore } from '@/stores/auth'
 import { useSecurityStore } from '@/stores/security'
 import { useUIStore } from '@/stores/ui'
+import { getAll } from '@/firebase/firestore'
+import { Collections } from '@/firebase/collections'
+import { usePDF } from '@/composables/usePDF'
+import { savePDF } from '@/utils/saveFile'
 
 const activityStore = useActivityStore()
 const auth = useAuthStore()
@@ -183,6 +312,8 @@ const security = useSecurityStore()
 const ui = useUIStore()
 const activityLoading = ref(false)
 const expandedId = ref(null)
+
+const section = ref('log') // 'log' | 'project'
 
 const isAdmin = computed(() => auth.role === 'admin')
 
@@ -378,6 +509,274 @@ function cleanDetails(d) {
   }
   return result
 }
+
+// ══════════════════════ Project Activities ══════════════════════════════════
+const { _drawHeader, _drawFooter, _sectionLabel, _infoGrid, _toRs, _C, _MARGIN, _getCtx } = usePDF()
+
+const projectsCache = ref([])
+const complaintsCache = ref([])
+const installationsCache = ref([])
+const modernisationCache = ref([])
+const repairsCache = ref([])
+const amcCache = ref([])
+const amcVisitsCache = ref([])
+const maintenanceCache = ref([])
+const projectDataLoading = ref(false)
+let projectDataPromise = null
+
+function ensureProjectData() {
+  if (projectDataPromise) return projectDataPromise
+  projectDataLoading.value = true
+  projectDataPromise = Promise.all([
+    getAll(Collections.PROJECTS),
+    getAll(Collections.COMPLAINTS),
+    getAll(Collections.INSTALLATION),
+    getAll(Collections.MODERNISATION),
+    getAll(Collections.REPAIRS),
+    getAll(Collections.AMC),
+    getAll(Collections.AMC_MONTHLY),
+    getAll(Collections.MAINTENANCE),
+  ]).then(([projects, complaints, installations, modernisations, repairs, amc, amcVisits, maintenance]) => {
+    projectsCache.value = projects
+    complaintsCache.value = complaints
+    installationsCache.value = installations
+    modernisationCache.value = modernisations
+    repairsCache.value = repairs
+    amcCache.value = amc
+    amcVisitsCache.value = amcVisits
+    maintenanceCache.value = maintenance
+  }).finally(() => { projectDataLoading.value = false })
+  return projectDataPromise
+}
+
+watch(section, (val) => { if (val === 'project') ensureProjectData() })
+
+const projectSearch = ref('')
+const showProjectDropdown = ref(false)
+const selectedProjectId = ref('')
+const expandedRecordId = ref(null)
+const pdfGenerating = ref(false)
+
+const filteredProjectsForSearch = computed(() => {
+  const q = projectSearch.value.trim().toLowerCase()
+  return projectsCache.value.filter(p =>
+    (p.projectName || '').toLowerCase().includes(q) ||
+    (p.clientName || '').toLowerCase().includes(q) ||
+    (p.city || '').toLowerCase().includes(q)
+  ).slice(0, 50)
+})
+
+function selectProject(p) {
+  selectedProjectId.value = p.id
+  projectSearch.value = p.projectName
+  showProjectDropdown.value = false
+  expandedRecordId.value = null
+}
+
+function delayCloseProjectDropdown() {
+  setTimeout(() => { showProjectDropdown.value = false }, 200)
+}
+
+const selectedProject = computed(() => projectsCache.value.find(p => p.id === selectedProjectId.value) || null)
+
+function fmtDateShort(d) {
+  if (!d) return '—'
+  const dt = d?.toDate ? d.toDate() : new Date(d)
+  if (isNaN(dt.getTime())) return '—'
+  return dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+function formatStatusLabel(s) {
+  if (!s) return '—'
+  return String(s).replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+
+const STATUS_PILL_MAP = {
+  completed: 'pill-green', resolved: 'pill-green', done: 'pill-green', active: 'pill-green',
+  'in-progress': 'pill-yellow', pending: 'pill-yellow', scheduled: 'pill-yellow', open: 'pill-yellow', reported: 'pill-yellow',
+  cancelled: 'pill-red', rejected: 'pill-red', expired: 'pill-red',
+}
+function statusPillClass(s) {
+  return STATUS_PILL_MAP[(s || '').toLowerCase()] || 'pill-grey'
+}
+
+function pruneEmpty(obj) {
+  const out = {}
+  for (const [k, v] of Object.entries(obj)) {
+    if (v === null || v === undefined || v === '' || v === '—') continue
+    out[k] = v
+  }
+  return out
+}
+
+const projectRecordGroups = computed(() => {
+  const pid = selectedProjectId.value
+  if (!pid) return []
+
+  const complaints = complaintsCache.value.filter(c => c.projectId === pid).map(c => ({
+    id: c.id, status: c.status, title: c.issueType || 'Complaint',
+    person: (c.assignedTechnicians || [c.assignedTo]).filter(Boolean).join(', '),
+    date: c.scheduledDate,
+    details: pruneEmpty({
+      Priority: formatStatusLabel(c.priority), Client: c.clientName, Description: c.description,
+      'Scheduled Date': fmtDateShort(c.scheduledDate), 'Scheduled Time': c.scheduledTime,
+      'Arrival Time': c.arrivalTime, 'Completion Time': c.completionTime,
+      'Customer Rating': c.customerRating ? `${c.customerRating} / 5` : '',
+    }),
+  }))
+
+  const installations = installationsCache.value.filter(a => a.projectId === pid).map(a => ({
+    id: a.id, status: a.status, title: a.liftType || 'Installation Activity',
+    person: (a.technicians || []).join(', ') || a.technician || '',
+    date: a.activityDate,
+    details: pruneEmpty({
+      Progress: a.progress != null ? `${a.progress}%` : '', Location: a.location, 'Lift Number': a.liftNumber,
+      'Issue Description': a.issueDescription, Remarks: a.remarks, 'Next Step Date': fmtDateShort(a.nextStepDate),
+    }),
+  }))
+
+  const modernisations = modernisationCache.value.filter(a => a.projectId === pid).map(a => ({
+    id: a.id, status: a.status, title: a.liftType || 'Modernisation Activity',
+    person: (a.technicians || []).join(', ') || a.technician || '',
+    date: a.activityDate,
+    details: pruneEmpty({
+      Progress: a.progress != null ? `${a.progress}%` : '', Location: a.location, 'Lift Number': a.liftNumber,
+      'Issue Description': a.issueDescription, Remarks: a.remarks, 'Next Step Date': fmtDateShort(a.nextStepDate),
+    }),
+  }))
+
+  const repairs = repairsCache.value.filter(r => r.projectId === pid).map(r => ({
+    id: r.id, status: r.status, title: r.repairType || 'Repair',
+    person: (r.technicians || []).join(', ') || r.technician || '',
+    date: r.repairDate,
+    details: pruneEmpty({
+      'Fault Description': r.faultDescription, 'Total Cost': r.totalCost ? _toRs(r.totalCost) : '',
+      Warranty: r.warranty === 'yes' ? 'Yes' : 'No', Notes: r.notes, Client: r.clientName,
+    }),
+  }))
+
+  const amcContracts = amcCache.value.filter(c => c.projectId === pid).map(c => ({
+    id: c.id, status: c.status, title: `Contract ${c.contractNumber || c.id}`,
+    person: (c.technicians || []).join(', '),
+    date: c.startDate,
+    details: pruneEmpty({
+      'Start Date': fmtDateShort(c.startDate), 'End Date': fmtDateShort(c.endDate),
+      'Contract Value': c.contractValue ? _toRs(c.totalWithGST || c.contractValue) : '',
+      Frequency: formatStatusLabel(c.frequency), Type: formatStatusLabel(c.contractTier), Notes: c.notes,
+    }),
+    visits: amcVisitsCache.value.filter(v => v.contractId === c.id)
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+      .map(v => ({ id: v.id, monthKey: v.monthKey, date: v.date, technician: v.technician, remarks: v.remarks })),
+  }))
+
+  const maintenance = maintenanceCache.value.filter(m => m.projectId === pid).map(m => ({
+    id: m.id, status: m.status, title: m.maintenanceType || 'Maintenance',
+    person: m.technicianName || '',
+    date: m.scheduledDate,
+    details: pruneEmpty({
+      'Scheduled Date': fmtDateShort(m.scheduledDate), 'Completed Date': fmtDateShort(m.completedDate),
+      'Work Performed': m.workPerformed, 'Next Service Date': fmtDateShort(m.nextServiceDate), Remarks: m.remarks,
+    }),
+  }))
+
+  const sortByDateDesc = (arr) => arr.sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+
+  return [
+    { key: 'complaints', label: 'Complaints', icon: MessageSquareWarning, color: '#f87171', records: sortByDateDesc(complaints) },
+    { key: 'installation', label: 'Installation', icon: HardHat, color: '#60a5fa', records: sortByDateDesc(installations) },
+    { key: 'modernisation', label: 'Modernisation', icon: Wrench, color: '#c084fc', records: sortByDateDesc(modernisations) },
+    { key: 'repairs', label: 'Repairs', icon: Hammer, color: '#fbbf24', records: sortByDateDesc(repairs) },
+    { key: 'amc', label: 'AMC Contracts', icon: ShieldCheck, color: '#34d399', records: sortByDateDesc(amcContracts) },
+    { key: 'maintenance', label: 'Maintenance', icon: Settings, color: '#94a3b8', records: sortByDateDesc(maintenance) },
+  ]
+})
+
+const projectStatSummary = computed(() => projectRecordGroups.value.map(g => ({ label: g.label, count: g.records.length })))
+
+async function downloadProjectReport() {
+  const proj = selectedProject.value
+  if (!proj) return
+  pdfGenerating.value = true
+  try {
+    const { jsPDF } = await import('jspdf')
+    const { applyPlugin } = await import('jspdf-autotable')
+    applyPlugin(jsPDF)
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+    const { company, userName } = await _getCtx()
+    const M = _MARGIN
+
+    let y = await _drawHeader(doc, {
+      company, userName,
+      title: 'Project Activity Report',
+      subtitle: `${proj.projectName} · ${proj.clientName || '—'}`,
+      accent: _C.indigo,
+    })
+
+    y = _sectionLabel(doc, 'Project Details', y, _C.indigo)
+    y = _infoGrid(doc, [
+      ['Project Name', proj.projectName || '—'],
+      ['Client', proj.clientName || '—'],
+      ['Address', proj.address || proj.city || '—'],
+      ['Status', formatStatusLabel(proj.status)],
+      ['Type', proj.type || '—'],
+      ['File Number', proj.fileNumber || '—'],
+    ], y)
+
+    const ensureSpace = (needed) => {
+      if (y + needed > 280) { doc.addPage(); y = 16 }
+    }
+
+    for (const group of projectRecordGroups.value) {
+      if (!group.records.length) continue
+      ensureSpace(20)
+      y = _sectionLabel(doc, `${group.label} (${group.records.length})`, y, _C.indigo)
+
+      doc.autoTable({
+        startY: y,
+        head: [['Date', 'Title', 'Status', 'Assigned To', 'Details']],
+        body: group.records.map(r => [
+          fmtDateShort(r.date), r.title, formatStatusLabel(r.status), r.person || '—',
+          Object.entries(r.details).map(([k, v]) => `${k}: ${v}`).join('\n'),
+        ]),
+        styles: { fontSize: 7.5, cellPadding: 3, textColor: _C.darkText, overflow: 'linebreak' },
+        headStyles: { fillColor: _C.indigo, textColor: _C.white, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: _C.rowAlt },
+        columnStyles: { 4: { cellWidth: 70 } },
+        margin: { left: M, right: M },
+        didDrawPage: async (data) => {
+          if (data.pageNumber > 1) await _drawHeader(doc, { company, userName, title: 'Project Activity Report', subtitle: '(continued)', accent: _C.indigo })
+        },
+      })
+      y = doc.lastAutoTable.finalY + 6
+
+      if (group.key === 'amc') {
+        const allVisits = group.records.flatMap(c => c.visits.map(v => ({ ...v, contractNo: c.title })))
+        if (allVisits.length) {
+          ensureSpace(20)
+          y = _sectionLabel(doc, 'AMC Maintenance Visits', y, _C.greyText)
+          doc.autoTable({
+            startY: y,
+            head: [['Contract', 'Month', 'Visit Date', 'Technician', 'Remarks']],
+            body: allVisits.map(v => [v.contractNo, v.monthKey || '—', fmtDateShort(v.date), v.technician || '—', v.remarks || '—']),
+            styles: { fontSize: 7.5, cellPadding: 3, textColor: _C.darkText, overflow: 'linebreak' },
+            headStyles: { fillColor: _C.greyText, textColor: _C.white, fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: _C.rowAlt },
+            margin: { left: M, right: M },
+          })
+          y = doc.lastAutoTable.finalY + 6
+        }
+      }
+    }
+
+    _drawFooter(doc, { company: company.name, title: 'Project Activity Report' })
+    await savePDF(doc, `Project-Activities-${(proj.projectName || proj.id).replace(/\s+/g, '_')}.pdf`, ui)
+    ui.success('PDF report downloaded.')
+  } catch (e) {
+    ui.error('PDF export failed: ' + e.message)
+  } finally {
+    pdfGenerating.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -483,10 +882,91 @@ function cleanDetails(d) {
 }
 
 @keyframes spin { to { transform:rotate(360deg); } }
+
+/* ── Sub-tabs ── */
+.act-tabs {
+  display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid rgba(255,255,255,.08);
+  overflow-x:auto;
+}
+.act-tab {
+  display:flex;align-items:center;gap:7px;padding:10px 16px;border:none;
+  border-bottom:2px solid transparent;background:transparent;color:var(--ct-muted);
+  font-size:13px;font-weight:500;cursor:pointer;transition:all .18s;
+  border-radius:8px 8px 0 0;white-space:nowrap;flex-shrink:0;
+}
+.act-tab:hover { color:var(--ct-sub); }
+.act-tab.active { color:var(--ct-accent);border-bottom-color:#6366f1;background:rgba(99,102,241,.06); }
+
+/* ── Project Activities ── */
+.proj-search-bar { display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center; }
+.proj-dd {
+  position:absolute;top:100%;left:0;right:0;margin-top:4px;border-radius:10px;z-index:200;
+  max-height:260px;overflow-y:auto;background:var(--ct-surface,#1a1a2e);
+  border:1px solid rgba(255,255,255,.12);box-shadow:0 12px 30px rgba(0,0,0,.4);
+}
+.proj-dd-item { padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid rgba(255,255,255,.05); }
+.proj-dd-item:last-child { border-bottom:none; }
+.proj-dd-item:hover, .proj-dd-item.active { background:rgba(99,102,241,.12); }
+.proj-dd-name { color:var(--ct-primary);font-weight:600; }
+.proj-dd-sub { color:var(--ct-muted);font-size:11px;margin-top:2px; }
+
+.proj-summary-card {
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;
+  background:rgba(99,102,241,.05);border:1px solid rgba(99,102,241,.15);border-radius:14px;
+  padding:18px 20px;margin-bottom:20px;
+}
+.proj-summary-name { font-size:17px;font-weight:700;color:var(--ct-primary); }
+.proj-summary-sub { font-size:12px;color:var(--ct-muted);margin-top:3px; }
+.proj-summary-stats { display:flex;gap:20px;flex-wrap:wrap; }
+.proj-summary-stat { text-align:center;min-width:64px; }
+.proj-summary-stat-val { font-size:18px;font-weight:700;color:var(--ct-accent); }
+.proj-summary-stat-lbl { font-size:10px;color:var(--ct-muted);text-transform:uppercase;letter-spacing:.04em;margin-top:2px; }
+
+.proj-section { margin-bottom:20px; }
+.proj-section-head { display:flex;align-items:center;gap:8px;margin-bottom:10px; }
+.proj-section-title { font-size:14px;font-weight:600;color:var(--ct-primary); }
+.proj-section-count {
+  background:rgba(255,255,255,.08);border-radius:20px;padding:1px 9px;font-size:11px;
+  color:var(--ct-muted);font-weight:600;
+}
+.proj-section-empty { font-size:12px;color:var(--ct-muted);padding:10px 2px; }
+
+.proj-record-list { display:flex;flex-direction:column;gap:8px; }
+.proj-record-card {
+  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);
+  border-radius:12px;cursor:pointer;transition:border-color .15s,background .15s;overflow:hidden;
+}
+.proj-record-card:hover { border-color:rgba(255,255,255,.15);background:rgba(255,255,255,.05); }
+.proj-record-card.expanded { border-color:rgba(99,102,241,.35);background:rgba(99,102,241,.04); }
+.proj-record-row { display:flex;align-items:center;gap:12px;padding:12px 16px;flex-wrap:wrap; }
+.proj-record-title { flex:1;font-size:13px;color:var(--ct-primary);font-weight:500;min-width:0; }
+.proj-record-meta { display:flex;align-items:center;gap:12px;font-size:11px;color:var(--ct-muted);flex-shrink:0; }
+.proj-record-date { white-space:nowrap; }
+.proj-record-details { border-top:1px solid rgba(255,255,255,.06);padding:14px 16px; }
+
+.proj-nested-visits { margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.05); }
+.proj-nested-head { font-size:11px;font-weight:600;color:var(--ct-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px; }
+.proj-nested-row {
+  display:grid;grid-template-columns:70px 90px 120px 1fr;gap:10px;font-size:12px;
+  color:var(--ct-sub);padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);
+}
+.proj-nested-remarks { color:var(--ct-muted); }
+
+.status-pill {
+  display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;
+  font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;flex-shrink:0;white-space:nowrap;
+}
+.pill-green  { background:rgba(34,197,94,.12); color:#22c55e;border:1px solid rgba(34,197,94,.25); }
+.pill-yellow { background:rgba(251,191,36,.1); color:#fbbf24;border:1px solid rgba(251,191,36,.25); }
+.pill-red    { background:rgba(239,68,68,.12); color:#f87171;border:1px solid rgba(239,68,68,.25); }
+.pill-grey   { background:rgba(100,116,139,.1);color:#94a3b8;border:1px solid rgba(100,116,139,.2); }
+
 @media (max-width:700px) {
   .stats-row { grid-template-columns:repeat(2,1fr); }
   .card-row { padding:10px 12px; }
   .card-meta { gap:8px; }
   .details-grid { grid-template-columns:120px 1fr; }
+  .proj-nested-row { grid-template-columns:1fr 1fr; }
+  .proj-summary-card { flex-direction:column;align-items:flex-start; }
 }
 </style>
