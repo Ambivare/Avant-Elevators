@@ -23,7 +23,9 @@
 //   Relay -> admin   : {type:'device-online'|'device-offline', employeeId}
 //
 // Run with: pm2 start index.js --name site-view-relay
-require('dotenv').config()
+// override: true — a stray shell-exported PORT (or secret) from an earlier
+// debugging session must never silently beat the committed .env file.
+require('dotenv').config({ override: true })
 
 const { WebSocketServer } = require('ws')
 

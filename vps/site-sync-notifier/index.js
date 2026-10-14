@@ -10,7 +10,9 @@
 // running on the VPS instead of on Firebase's metered Functions runtime.
 //
 // Run with: pm2 start index.js --name site-sync-notifier
-require('dotenv').config()
+// override: true — a stray shell-exported var from an earlier debugging
+// session must never silently beat the committed .env file.
+require('dotenv').config({ override: true })
 
 const path = require('path')
 const admin = require('firebase-admin')
