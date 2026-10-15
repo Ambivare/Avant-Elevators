@@ -65,9 +65,30 @@ function broadcastToWatchers(employeeId, obj) {
 // and the proxy entirely.
 const wss = new WebSocketServer({ port: PORT, host: '127.0.0.1' })
 
+// Server-initiated protocol pings — both OkHttp (device) and browsers (admin)
+// answer these automatically at the WebSocket-protocol level, with no app
+// code needed on either end. This is what actually keeps the connection
+// alive through nginx's proxy_read_timeout and carrier/NAT idle timeouts on
+// a weak mobile signal; without it, an idle socket just gets silently cut
+// and nobody finds out until the next command fails.
+const HEARTBEAT_INTERVAL_MS = 20 * 1000
+setInterval(() => {
+  for (const socket of wss.clients) {
+    if (socket.isAlive === false) {
+      log('[heartbeat] no pong — terminating dead socket', socket.role, socket.employeeId || '')
+      socket.terminate()
+      continue
+    }
+    socket.isAlive = false
+    socket.ping()
+  }
+}, HEARTBEAT_INTERVAL_MS)
+
 wss.on('connection', (socket) => {
   socket.role = null
   socket.employeeId = null
+  socket.isAlive = true
+  socket.on('pong', () => { socket.isAlive = true })
 
   socket.on('message', (raw) => {
     let msg

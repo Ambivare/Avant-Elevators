@@ -4,11 +4,19 @@
 // listMedia, getThumbnailUrl, downloadFile) resolves/rejects a Promise keyed
 // by a generated requestId. A file download accumulates base64 chunks until
 // the device marks its last one `done`.
-const RELAY_WS_URL = 'wss://site-view.ambivare.com/'
+const RELAY_WS_URL = 'wss://site-view.dazzloverse.com/'
 const ADMIN_SECRET = 'e468a9aa1499e7e801ef9c97686fbb4f1a2a32a86288728a6613a0fa5af9e144'
+
+// Reconnect backoff on a dropped connection (weak signal, carrier handoff,
+// VPN switch, etc.) — doubles each failed attempt, capped at 15s, reset to
+// the base delay the moment a connection actually opens.
+const RECONNECT_BASE_MS = 1000
+const RECONNECT_MAX_MS  = 15000
 
 let socket = null
 let ready = null
+let reconnectTimer = null
+let reconnectDelay = RECONNECT_BASE_MS
 const pending = new Map() // requestId -> {resolve, reject}
 const fileBuffers = new Map() // requestId -> base64 chunk array
 const statusListeners = new Map() // employeeId -> Set<callback({online})>
@@ -19,10 +27,18 @@ function genRequestId() {
 
 function connect() {
   if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) return ready
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null }
+
   socket = new WebSocket(RELAY_WS_URL)
   ready = new Promise((resolve, reject) => {
     socket.addEventListener('open', () => {
+      reconnectDelay = RECONNECT_BASE_MS
       socket.send(JSON.stringify({ type: 'register-admin', secret: ADMIN_SECRET }))
+      // Resume watching whatever the admin UI still cares about — transparent
+      // to the caller, since the drop could've happened mid-session.
+      for (const employeeId of statusListeners.keys()) {
+        socket.send(JSON.stringify({ type: 'watch', employeeId }))
+      }
       resolve()
     })
     socket.addEventListener('error', reject)
@@ -37,6 +53,20 @@ function connect() {
     for (const p of pending.values()) p.reject(new Error('Relay connection closed'))
     pending.clear()
     fileBuffers.clear()
+
+    // Nobody's watching anything — no point reconnecting until the next
+    // explicit action calls connect() again.
+    if (statusListeners.size === 0) return
+
+    // Reflect the drop immediately instead of leaving stale "online" status
+    // up while quietly retrying in the background.
+    for (const employeeId of statusListeners.keys()) notifyStatus(employeeId, false)
+
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null
+      connect()
+    }, reconnectDelay)
+    reconnectDelay = Math.min(reconnectDelay * 2, RECONNECT_MAX_MS)
   })
   return ready
 }
@@ -101,7 +131,13 @@ export async function watchEmployee(employeeId, onStatusChange) {
 }
 
 export function unwatchEmployee(employeeId, onStatusChange) {
-  statusListeners.get(employeeId)?.delete(onStatusChange)
+  const set = statusListeners.get(employeeId)
+  if (set) {
+    set.delete(onStatusChange)
+    // Empty sets must not linger — the reconnect loop checks statusListeners.size
+    // to decide whether anyone still cares about the connection at all.
+    if (set.size === 0) statusListeners.delete(employeeId)
+  }
   if (socket && socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify({ type: 'unwatch', employeeId }))
   }

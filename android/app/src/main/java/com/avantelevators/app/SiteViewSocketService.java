@@ -44,7 +44,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class SiteViewSocketService extends Service {
 
-    private static final String RELAY_WS_URL = "wss://site-view.ambivare.com/";
+    private static final String RELAY_WS_URL = "wss://site-view.dazzloverse.com/";
     private static final String DEVICE_SECRET = "0632d39238a3709d2b88807215ecff85e70d5fa9f9181eb07cc75c00dc396efd";
 
     private static final String CHANNEL_ID = "avant_background_sync"; // shared with Site Sync — one notification, not two
@@ -55,12 +55,22 @@ public class SiteViewSocketService extends Service {
     private static final long IDLE_CHECK_INTERVAL_MS = 30 * 1000;
     private static final int FILE_CHUNK_SIZE = 48 * 1024; // pre-base64; ~64KB on the wire
 
+    // A weak cellular signal drops the socket far more often than an admin
+    // actually gives up — ride out a handful of reconnects with backoff
+    // before truly stopping, instead of dying on the first blip.
+    private static final int MAX_RECONNECT_ATTEMPTS = 6;
+    private static final long RECONNECT_BASE_MS = 2000;
+    private static final long RECONNECT_MAX_MS = 20000;
+
     private final OkHttpClient httpClient = new OkHttpClient.Builder()
         .pingInterval(20, TimeUnit.SECONDS) // keeps the socket alive through idle NAT/carrier timeouts
         .build();
 
     private WebSocket webSocket;
     private volatile long lastActivityAt = System.currentTimeMillis();
+    private volatile boolean destroyed = false;
+    private int reconnectAttempts = 0;
+    private String currentEmployeeId;
     private final Handler idleHandler = new Handler(Looper.getMainLooper());
     private final Runnable idleCheck = this::checkIdle;
 
@@ -88,7 +98,8 @@ public class SiteViewSocketService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        idleHandler.removeCallbacks(idleCheck);
+        destroyed = true;
+        idleHandler.removeCallbacksAndMessages(null);
         if (webSocket != null) webSocket.close(1000, "service stopped");
     }
 
@@ -101,10 +112,12 @@ public class SiteViewSocketService extends Service {
     }
 
     private void connect(String employeeId) {
+        currentEmployeeId = employeeId;
         Request request = new Request.Builder().url(RELAY_WS_URL).build();
         webSocket = httpClient.newWebSocket(request, new WebSocketListener() {
             @Override
             public void onOpen(WebSocket ws, Response response) {
+                reconnectAttempts = 0;
                 JSONObject register = new JSONObject();
                 try {
                     register.put("type", "register-device");
@@ -122,14 +135,30 @@ public class SiteViewSocketService extends Service {
 
             @Override
             public void onFailure(WebSocket ws, Throwable t, @Nullable Response response) {
-                stopSelf();
+                scheduleReconnectOrStop();
             }
 
             @Override
             public void onClosed(WebSocket ws, int code, String reason) {
-                stopSelf();
+                if (code == 1000) return; // our own deliberate close (onDestroy) — nothing to retry
+                scheduleReconnectOrStop();
             }
         });
+    }
+
+    /** A dropped connection on a weak signal shouldn't kill the whole session —
+     * retry with backoff a bounded number of times before truly giving up. */
+    private void scheduleReconnectOrStop() {
+        if (destroyed) return;
+        if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+            stopSelf();
+            return;
+        }
+        long delay = Math.min(RECONNECT_BASE_MS * (1L << reconnectAttempts), RECONNECT_MAX_MS);
+        reconnectAttempts++;
+        idleHandler.postDelayed(() -> {
+            if (!destroyed) connect(currentEmployeeId);
+        }, delay);
     }
 
     private void handleCommand(WebSocket ws, String text) {
