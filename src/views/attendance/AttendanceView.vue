@@ -580,9 +580,7 @@
 <script setup>
 import { ref, computed, onMounted, reactive, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { mediaStorage } from '@/firebase/storage-config'
-import { uploadToR2 } from '@/composables/useR2Storage'
+import { uploadToStorageApi } from '@/composables/useAvantStorageApi'
 import { getAll, create, update, where, orderBy } from '@/firebase/firestore'
 import { Collections } from '@/firebase/collections'
 import { useAuthStore } from '@/stores/auth'
@@ -809,17 +807,10 @@ async function onSelfieCapture(blob) {
     const path = `attendance-selfies/${auth.user.id}/${localDateStr()}_${selfieMode.value}_${ts}.jpg`
     let url
     try {
-      const sRef = storageRef(mediaStorage, path)
-      await uploadBytes(sRef, blob, { contentType: 'image/jpeg' })
-      url = await getDownloadURL(sRef)
-    } catch (fbErr) {
-      console.warn('[Storage] Firebase failed, falling back to R2:', fbErr.code || fbErr.message)
-      try {
-        url = await uploadToR2(blob, path, 'image/jpeg')
-      } catch (r2Err) {
-        console.error('[Storage] R2 fallback also failed:', r2Err.message)
-        throw new Error('Photo upload failed. Check your connection and try again.')
-      }
+      url = await uploadToStorageApi(blob, path, 'image/jpeg')
+    } catch (err) {
+      console.error('[Storage] Attendance selfie upload failed:', err.message)
+      throw new Error('Photo upload failed. Check your connection and try again.')
     }
     const todayDateStr = localDateStr(now)
 
