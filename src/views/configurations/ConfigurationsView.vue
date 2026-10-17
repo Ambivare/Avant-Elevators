@@ -2570,12 +2570,21 @@ async function loadDefaultChecklist() {
 const fcmTokensLoading = ref(false)
 const fcmTokenRecords = ref([])
 const fcmTokenEmployees = ref([])
+const fcmTokenUsers = ref([])
 let fcmTokensLoaded = false
 
 watch(activeTab, (val) => { if (val === 'fcm-tokens') loadFcmTokens() })
 
 const fcmTokenRows = computed(() => {
-  const empById = new Map(fcmTokenEmployees.value.map(e => [e.id, e]))
+  // auth.js's login() checks `employees` first, then falls back to the
+  // legacy `users` collection — someone logged in via that fallback would
+  // never match if we only looked at employees, showing a false
+  // "No matching employee" for an account that genuinely exists. Users
+  // loaded second so an id present in both resolves to the employees copy.
+  const empById = new Map([
+    ...fcmTokenUsers.value.map(e => [e.id, e]),
+    ...fcmTokenEmployees.value.map(e => [e.id, e]),
+  ])
   return fcmTokenRecords.value
     .map(r => ({
       ...r,
@@ -2593,12 +2602,14 @@ async function loadFcmTokens() {
   if (fcmTokensLoaded) return
   fcmTokensLoading.value = true
   try {
-    const [tokens, employees] = await Promise.all([
+    const [tokens, employees, users] = await Promise.all([
       getAll(Collections.FCM_TOKENS),
       getAll(Collections.EMPLOYEES),
+      getAll(Collections.USERS),
     ])
     fcmTokenRecords.value = tokens
     fcmTokenEmployees.value = employees
+    fcmTokenUsers.value = users
     fcmTokensLoaded = true
   } catch {
     ui.error('Failed to load FCM tokens.')

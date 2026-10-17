@@ -11,7 +11,6 @@ import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
-import com.getcapacitor.PermissionState;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
@@ -84,8 +83,19 @@ public class MediaAccessPlugin extends Plugin {
         call.resolve();
     }
 
+    // Deliberately NOT getPermissionState("media") — that ANDs across every
+    // string in the alias, including READ_EXTERNAL_STORAGE, which is capped
+    // at maxSdkVersion=32 in the manifest and so can never be granted on
+    // Android 13+ (the OS strips it from the app entirely). Checking the
+    // whole alias made this report "denied" forever on any modern phone
+    // even right after the user picked "Allow all" in the system dialog.
+    // Check only the permission(s) that actually apply on this SDK version.
     private boolean isFullyGranted() {
-        return getPermissionState("media") == PermissionState.GRANTED;
+        if (Build.VERSION.SDK_INT >= 33) {
+            return ContextCompat.checkSelfPermission(getContext(), Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED
+                && ContextCompat.checkSelfPermission(getContext(), Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED;
+        }
+        return ContextCompat.checkSelfPermission(getContext(), Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
     }
 
     private boolean isLimitedOnly() {
