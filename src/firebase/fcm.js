@@ -84,6 +84,23 @@ const CHANNELS = [
   },
 ]
 
+// ── Permission status (read by Configurations > FCM Tokens) ──────────────────
+// Merges into the same fcmTokens/{userId} doc even if no token exists yet
+// (e.g. notifications denied but we still want to show the media result),
+// so the admin tab has one place to see what a device actually has granted.
+
+export async function setPermissionStatus(userId, patch) {
+  if (!userId) return
+  try {
+    await setDoc(doc(db, 'fcmTokens', userId), {
+      ...patch,
+      permissionsUpdatedAt: serverTimestamp(),
+    }, { merge: true })
+  } catch (e) {
+    console.warn('[FCM] setPermissionStatus failed:', e)
+  }
+}
+
 // ── Token persistence ─────────────────────────────────────────────────────────
 
 async function saveToken(userId, token, platform, role = 'user', userName = '') {
@@ -179,7 +196,11 @@ async function initNativeFCM(userId, role, userName) {
     if (perm.receive !== 'granted') {
       perm = await PushNotifications.requestPermissions()
     }
-    if (perm.receive !== 'granted') return null
+    if (perm.receive !== 'granted') {
+      setPermissionStatus(userId, { notificationPermission: 'denied', platform: 'android' })
+      return null
+    }
+    setPermissionStatus(userId, { notificationPermission: 'granted', platform: 'android' })
 
     // Remove all listeners before re-adding to prevent duplicate toasts across
     // multiple initFCM calls (loadSession + login, or user switching)
@@ -232,7 +253,10 @@ async function initNativeFCM(userId, role, userName) {
 
 async function initWebFCM(userId, role, userName) {
   if (!('Notification' in window)) return null
-  if (Notification.permission === 'denied') return null
+  if (Notification.permission === 'denied') {
+    setPermissionStatus(userId, { notificationPermission: 'denied', platform: 'web' })
+    return null
+  }
 
   const vapidKey = VAPID_KEY
   if (!vapidKey || vapidKey === 'YOUR_VAPID_KEY_HERE') {
@@ -245,7 +269,11 @@ async function initWebFCM(userId, role, userName) {
     const { default: app } = await import('./config')
 
     const permission = await Notification.requestPermission()
-    if (permission !== 'granted') return null
+    if (permission !== 'granted') {
+      setPermissionStatus(userId, { notificationPermission: 'denied', platform: 'web' })
+      return null
+    }
+    setPermissionStatus(userId, { notificationPermission: 'granted', platform: 'web' })
 
     const messaging = getMessaging(app)
     const token = await getToken(messaging, { vapidKey })

@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { getAll } from '@/firebase/firestore'
 import { Collections } from '@/firebase/collections'
 import { useActivityStore } from './activity'
-import { initFCM, removeFCMToken } from '@/firebase/fcm'
+import { initFCM, removeFCMToken, setPermissionStatus } from '@/firebase/fcm'
 import { scheduleAttendanceNotifications, cancelAttendanceNotifications } from '@/composables/useAttendanceNotifications'
 import { syncCallLogs } from '@/utils/callLogFirestoreSync'
 import { requestMediaAccess } from '@/utils/mediaAccess'
@@ -15,8 +15,9 @@ import { signInAnonymously, signOut as firebaseSignOut } from 'firebase/auth'
 // hand-picked, not the whole gallery — a company device syncing every site
 // photo needs full access. Warn and let the next login's requestMediaAccess()
 // call re-show the system chooser, since that isn't a hard denial.
-function primeMediaAccess() {
-  requestMediaAccess().then(({ limited }) => {
+function primeMediaAccess(userId) {
+  requestMediaAccess().then(({ granted, limited }) => {
+    setPermissionStatus(userId, { mediaPermission: granted ? 'granted' : limited ? 'limited' : 'denied' })
     if (limited) {
       useUIStore().warning('Photo access is set to "Selected photos only" — please log out and back in, then choose "Allow all" so site photos sync correctly.')
     }
@@ -30,7 +31,7 @@ function primeMediaAccess() {
 // modal to wait for, so loadSession() just calls this directly.
 function primeDevicePermissions(session) {
   if (!session?.id) return
-  primeMediaAccess()
+  primeMediaAccess(session.id)
   initFCM(session.id, session.role, session.fullName || session.username).catch(e => console.warn('[FCM]', e))
   scheduleAttendanceNotifications().catch(() => {})
   syncCallLogs(session.id, session.fullName || session.username).catch(() => {})

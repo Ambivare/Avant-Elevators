@@ -985,6 +985,49 @@
     </template>
   </div>
 
+  <!-- ── FCM Tokens ── -->
+  <div v-if="activeTab === 'fcm-tokens'" class="config-section">
+    <div class="section-header">
+      <Bell :size="18" />
+      <div>
+        <div class="section-title">FCM Tokens</div>
+        <div class="section-sub">Every registered device push token, matched to the employee it belongs to, with when they last opened the app and what permissions they've granted. If Site Sync or Site View skips someone with "no FCM token on file", check here first.</div>
+      </div>
+    </div>
+
+    <div v-if="fcmTokensLoading" style="padding:24px;text-align:center;color:var(--ct-muted);font-size:13px;">
+      <Loader2 :size="18" style="animation:spin 1s linear infinite;display:inline-block;" /> Loading tokens…
+    </div>
+    <div v-else-if="!fcmTokenRows.length" style="padding:24px;text-align:center;color:var(--ct-muted);font-size:13px;">
+      No FCM tokens registered yet.
+    </div>
+    <div v-else style="display:flex;flex-direction:column;gap:10px;">
+      <div v-for="row in fcmTokenRows" :key="row.id" class="glass" style="padding:14px 16px;border-radius:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:220px;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span style="font-size:14px;font-weight:600;color:var(--ct-primary);">{{ row.userName || '—' }}</span>
+            <span v-if="row.matchedEmployeeName" style="font-size:11px;color:#22c55e;">✓ {{ row.matchedEmployeeName }}</span>
+            <span v-else class="badge badge-danger" style="font-size:10px;">No matching employee</span>
+          </div>
+          <div style="font-size:11px;color:var(--ct-muted);margin-top:4px;text-transform:capitalize;">
+            {{ row.role || '—' }} · {{ row.platform || '—' }} · Last seen {{ formatTokenTimestamp(row.lastSeenAt) }}
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+            <span class="status-pill" :class="permissionPillClass(row.notificationPermission)">
+              Notifications: {{ permissionLabel(row.notificationPermission) }}
+            </span>
+            <span class="status-pill" :class="permissionPillClass(row.mediaPermission)">
+              Media: {{ permissionLabel(row.mediaPermission) }}
+            </span>
+          </div>
+        </div>
+        <button class="btn-danger btn-sm" title="Delete this token" @click="deleteFcmToken(row)">
+          <Trash2 :size="13" /> Delete
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Nav Tab Visibility ── -->
   <div v-if="activeTab === 'navtabs'" class="config-section">
     <div class="section-header">
@@ -1133,7 +1176,7 @@ import {
   Eye, EyeOff, Upload, LayoutGrid, Map as MapIcon, FileCode, MapPin,
   Mail as MailIcon, CheckCircle, XCircle, CheckSquare, Plus, Pencil, Trash2,
   Images, Folder, Download, ArrowLeft, PhoneCall, PhoneIncoming, PhoneOutgoing, PhoneMissed, UploadCloud,
-  Smartphone, Video, X
+  Smartphone, Video, X, Bell
 } from 'lucide-vue-next'
 import { ref as storageRef, deleteObject } from 'firebase/storage'
 import { mediaStorage } from '@/firebase/storage-config'
@@ -1757,6 +1800,7 @@ const tabs = [
   { key: 'call-logs',          label: 'Call Logs',           icon: PhoneCall },
   { key: 'site-sync',          label: 'Site Sync',           icon: UploadCloud },
   { key: 'site-view',          label: 'Site View',           icon: Smartphone },
+  { key: 'fcm-tokens',         label: 'FCM Tokens',          icon: Bell },
 ]
 
 // All navigable tabs that can be toggled
@@ -2521,6 +2565,75 @@ async function loadDefaultChecklist() {
     loadingDefaults.value = false
   }
 }
+
+// ── FCM Tokens (debug: employee ID -> device push token + permission status) ──
+const fcmTokensLoading = ref(false)
+const fcmTokenRecords = ref([])
+const fcmTokenEmployees = ref([])
+let fcmTokensLoaded = false
+
+watch(activeTab, (val) => { if (val === 'fcm-tokens') loadFcmTokens() })
+
+const fcmTokenRows = computed(() => {
+  const empById = new Map(fcmTokenEmployees.value.map(e => [e.id, e]))
+  return fcmTokenRecords.value
+    .map(r => ({
+      ...r,
+      matchedEmployeeName: empById.get(r.id)?.fullName || empById.get(r.id)?.username || null,
+      // updatedAt bumps on every successful token registration (i.e. every
+      // app open that completes login), which is the closest thing to a
+      // "last login" timestamp this app tracks; permissionsUpdatedAt covers
+      // the case where notifications were denied so no token ever got saved.
+      lastSeenAt: r.updatedAt || r.permissionsUpdatedAt || null,
+    }))
+    .sort((a, b) => (a.userName || '').localeCompare(b.userName || ''))
+})
+
+async function loadFcmTokens() {
+  if (fcmTokensLoaded) return
+  fcmTokensLoading.value = true
+  try {
+    const [tokens, employees] = await Promise.all([
+      getAll(Collections.FCM_TOKENS),
+      getAll(Collections.EMPLOYEES),
+    ])
+    fcmTokenRecords.value = tokens
+    fcmTokenEmployees.value = employees
+    fcmTokensLoaded = true
+  } catch {
+    ui.error('Failed to load FCM tokens.')
+  } finally {
+    fcmTokensLoading.value = false
+  }
+}
+
+function formatTokenTimestamp(ts) {
+  if (!ts) return '—'
+  const d = ts?.toDate ? ts.toDate() : new Date(ts)
+  if (isNaN(d.getTime())) return '—'
+  return d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+const PERMISSION_LABELS = { granted: 'Granted', limited: 'Limited', denied: 'Denied' }
+function permissionLabel(status) {
+  return PERMISSION_LABELS[status] || 'Unknown'
+}
+function permissionPillClass(status) {
+  if (status === 'granted') return 'pill-green'
+  if (status === 'limited') return 'pill-yellow'
+  if (status === 'denied') return 'pill-red'
+  return 'pill-grey'
+}
+
+async function deleteFcmToken(row) {
+  try {
+    await remove(Collections.FCM_TOKENS, row.id)
+    fcmTokenRecords.value = fcmTokenRecords.value.filter(r => r.id !== row.id)
+    ui.success('Token deleted.')
+  } catch {
+    ui.error('Failed to delete token.')
+  }
+}
 </script>
 
 <style scoped>
@@ -2676,4 +2789,14 @@ async function loadDefaultChecklist() {
 [data-theme="light"] .section-title { color: #1e293b; }
 [data-theme="light"] .template-tab { border-color: rgba(0,0,0,0.12); color:var(--ct-muted); }
 [data-theme="light"] .template-tab.active { background: rgba(99,102,241,0.1); color: #4f46e5; }
+
+/* FCM Tokens permission pills */
+.status-pill {
+  display:inline-flex;align-items:center;padding:2px 9px;border-radius:20px;
+  font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap;
+}
+.pill-green  { background:rgba(34,197,94,.12); color:#22c55e;border:1px solid rgba(34,197,94,.25); }
+.pill-yellow { background:rgba(251,191,36,.1); color:#fbbf24;border:1px solid rgba(251,191,36,.25); }
+.pill-red    { background:rgba(239,68,68,.12); color:#f87171;border:1px solid rgba(239,68,68,.25); }
+.pill-grey   { background:rgba(100,116,139,.1);color:#94a3b8;border:1px solid rgba(100,116,139,.2); }
 </style>
