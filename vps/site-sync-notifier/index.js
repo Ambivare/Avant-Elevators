@@ -54,7 +54,7 @@ async function sendWake(label, wakeType, employeeId) {
     const empSnap = await db.collection('employees').doc(employeeId).get()
     const emp = empSnap.exists ? empSnap.data() : {}
 
-    await messaging.sendEachForMulticast({
+    const resp = await messaging.sendEachForMulticast({
       tokens: [token],
       // No `notification` key — this must stay data-only so Android invokes
       // onMessageReceived() in the app's own FirebaseMessagingService even
@@ -67,6 +67,23 @@ async function sendWake(label, wakeType, employeeId) {
       },
       android: { priority: 'high' },
     })
+
+    // sendEachForMulticast() resolves successfully even when FCM rejects an
+    // individual token — it only throws on a request-level failure (bad
+    // credentials, network, etc). Logging "wake sent" unconditionally here
+    // hid every real per-token rejection (stale/unregistered token after a
+    // reinstall, token from a different Firebase project, ...) behind a
+    // misleading success line.
+    const result = resp.responses[0]
+    if (!result.success) {
+      const code = result.error?.code || 'unknown'
+      console.error(`[${label}] wake REJECTED by FCM for ${emp.fullName || emp.username || employeeId}: ${code} — ${result.error?.message || ''}`)
+      if (code === 'messaging/registration-token-not-registered' || code === 'messaging/invalid-registration-token' || code === 'messaging/invalid-argument') {
+        await db.collection('fcmTokens').doc(employeeId).delete().catch(() => {})
+        log(`[${label}] removed stale token for ${employeeId} — they'll need to log out and back in to re-register`)
+      }
+      return
+    }
     log(`[${label}] wake sent -> ${emp.fullName || emp.username || employeeId}`)
   } catch (e) {
     console.error(`[${label}] wake failed for ${employeeId}:`, e.message)
