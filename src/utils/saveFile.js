@@ -60,6 +60,32 @@ export async function savePDF(doc, filename, ui) {
 }
 
 /**
+ * Save an arbitrary Blob (e.g. a downloaded photo/video).
+ * Native Android: writes to the user-visible Downloads folder.
+ * Browser: triggers the standard browser download via a temporary <a download>.
+ */
+export async function saveBlob(blob, filename, ui) {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const buf = await blob.arrayBuffer()
+      await writeToDevice(filename, toBase64(new Uint8Array(buf)), ui)
+    } catch (e) {
+      console.error('[saveBlob]', e)
+      ui?.error('Save failed: ' + (e?.message || e))
+    }
+  } else {
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  }
+}
+
+/**
  * Save a SheetJS workbook.
  * Native Android: writes to app Documents folder.
  * Browser: triggers standard browser download.

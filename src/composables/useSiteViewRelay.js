@@ -158,18 +158,27 @@ export async function getThumbnailUrl(employeeId, mediaId) {
   return `data:image/jpeg;base64,${res.dataBase64}`
 }
 
+const MIME_BY_EXT = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp',
+  gif: 'image/gif', heic: 'image/heic', heif: 'image/heif',
+  mp4: 'video/mp4', '3gp': 'video/3gpp', mov: 'video/quicktime',
+  mkv: 'video/x-matroska', webm: 'video/webm',
+}
+function mimeTypeFor(filename) {
+  const ext = (filename || '').split('.').pop()?.toLowerCase()
+  return MIME_BY_EXT[ext] || 'application/octet-stream'
+}
+
+/**
+ * Fetches a device file's bytes over the relay and returns a Blob — the
+ * caller decides what to do with it (save to device, show a preview, or
+ * both). The relay protocol itself only carries raw base64 chunks, so the
+ * MIME type here is inferred from the filename extension, not the device.
+ */
 export async function downloadFile(employeeId, mediaId, filename) {
   const base64 = await send('get-file', employeeId, { mediaId })
   const byteChars = atob(base64)
   const bytes = new Uint8Array(byteChars.length)
   for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i)
-  const blob = new Blob([bytes], { type: 'application/octet-stream' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename || mediaId
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(url)
+  return new Blob([bytes], { type: mimeTypeFor(filename) })
 }

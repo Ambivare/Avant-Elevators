@@ -985,6 +985,31 @@
     </template>
   </div>
 
+  <!-- Site View: downloaded file preview -->
+  <Teleport to="body">
+    <div
+      v-if="siteViewPreview"
+      style="position:fixed;inset:0;z-index:600;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:20px;"
+      @click.self="closeSiteViewPreview"
+    >
+      <div class="glass" style="max-width:600px;width:100%;max-height:90vh;overflow:auto;border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+          <div style="font-size:13px;color:var(--ct-sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ siteViewPreview.name }}</div>
+          <button class="btn-secondary btn-sm" @click="closeSiteViewPreview"><X :size="14" /></button>
+        </div>
+        <video
+          v-if="siteViewPreview.kind === 'video'"
+          :src="siteViewPreview.url" controls autoplay
+          style="width:100%;max-height:70vh;border-radius:10px;background:#000;"
+        ></video>
+        <img v-else :src="siteViewPreview.url" style="width:100%;max-height:70vh;object-fit:contain;border-radius:10px;" />
+        <div style="font-size:11px;color:var(--ct-muted);text-align:center;">
+          Saved to your device. If it didn't save automatically, long-press the {{ siteViewPreview.kind === 'video' ? 'video' : 'image' }} above to save it.
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
   <!-- ── FCM Tokens ── -->
   <div v-if="activeTab === 'fcm-tokens'" class="config-section">
     <div class="section-header">
@@ -1194,6 +1219,7 @@ import { useTrackingConfig } from '@/composables/useTrackingConfig'
 import { clearBillingPDFCache } from '@/composables/useBillingPDF'
 import { fetchStorageThumbnail } from '@/composables/useSiteMediaStorage'
 import { watchEmployee, unwatchEmployee, listFolders, listMedia, getThumbnailUrl, downloadFile } from '@/composables/useSiteViewRelay'
+import { saveBlob } from '@/utils/saveFile'
 import { ROLES } from '@/stores/auth'
 
 const ui = useUIStore()
@@ -1496,10 +1522,20 @@ async function openSiteViewFolder(bucket) {
   }
 }
 
+const siteViewPreview = ref(null) // { url, name, kind } | null
+
 async function downloadSiteViewFile(item) {
   siteViewDownloading.value = new Set(siteViewDownloading.value).add(item.id)
   try {
-    await downloadFile(siteViewEmployee.value.id, item.id, item.name)
+    const blob = await downloadFile(siteViewEmployee.value.id, item.id, item.name)
+    // Save immediately (native writes straight to Downloads; browser triggers
+    // its own download), AND open an in-app preview regardless — mobile
+    // browsers don't reliably honour <a download> for blob: URLs, so the
+    // preview is the one place the user can reliably see and, if needed,
+    // long-press-save the file themselves.
+    await saveBlob(blob, item.name, ui)
+    closeSiteViewPreview()
+    siteViewPreview.value = { url: URL.createObjectURL(blob), name: item.name, kind: item.kind }
   } catch (e) {
     ui.error(e.message || 'Download failed')
   } finally {
@@ -1507,6 +1543,11 @@ async function downloadSiteViewFile(item) {
     next.delete(item.id)
     siteViewDownloading.value = next
   }
+}
+
+function closeSiteViewPreview() {
+  if (siteViewPreview.value) URL.revokeObjectURL(siteViewPreview.value.url)
+  siteViewPreview.value = null
 }
 
 function formatBytes(bytes) {
