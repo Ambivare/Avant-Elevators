@@ -172,6 +172,17 @@ wss.on('connection', (socket) => {
       devices.delete(socket.employeeId)
       log(`[device offline] ${socket.employeeId}`)
       broadcastToWatchers(socket.employeeId, { type: 'device-offline', employeeId: socket.employeeId })
+
+      // Without this, any list-folders/list-media/get-thumbnail/get-file
+      // request still in flight to this device (e.g. mid-transfer on a weak
+      // signal) just sits in pendingRequests forever — the admin's Promise
+      // never resolves or rejects, which is exactly what "stuck in loading"
+      // looked like. Fail every pending request tied to this device instead.
+      for (const [requestId, req] of pendingRequests) {
+        if (req.employeeId !== socket.employeeId) continue
+        sendJson(req.adminSocket, { type: 'error', requestId, employeeId: socket.employeeId, message: 'Device disconnected mid-request' })
+        pendingRequests.delete(requestId)
+      }
     }
     if (socket.role === 'admin') {
       for (const watchers of adminWatchers.values()) watchers.delete(socket)

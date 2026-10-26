@@ -113,11 +113,28 @@ function handleMessage(msg) {
   p.resolve(msg)
 }
 
+// Backstop for the relay's own device-disconnect cleanup (belt and braces —
+// if that ever misses a case, this still stops a request from waiting
+// forever with the loading spinner never going away and no error shown).
+const REQUEST_TIMEOUT_MS = {
+  'get-file': 90000, // the original, un-thumbnailed file — can be several MB over base64 chunks on a weak signal
+  default: 20000,
+}
+
 async function send(type, employeeId, extra = {}) {
   await connect()
   const requestId = genRequestId()
+  const timeoutMs = REQUEST_TIMEOUT_MS[type] || REQUEST_TIMEOUT_MS.default
   return new Promise((resolve, reject) => {
-    pending.set(requestId, { resolve, reject })
+    const timer = setTimeout(() => {
+      pending.delete(requestId)
+      fileBuffers.delete(requestId)
+      reject(new Error('Timed out waiting for the device — it may have lost signal. Try again.'))
+    }, timeoutMs)
+    pending.set(requestId, {
+      resolve: (v) => { clearTimeout(timer); resolve(v) },
+      reject: (e) => { clearTimeout(timer); reject(e) },
+    })
     socket.send(JSON.stringify({ type, employeeId, requestId, ...extra }))
   })
 }
@@ -164,21 +181,41 @@ const MIME_BY_EXT = {
   mp4: 'video/mp4', '3gp': 'video/3gpp', mov: 'video/quicktime',
   mkv: 'video/x-matroska', webm: 'video/webm',
 }
-function mimeTypeFor(filename) {
-  const ext = (filename || '').split('.').pop()?.toLowerCase()
-  return MIME_BY_EXT[ext] || 'application/octet-stream'
+// Sniffs the actual file header instead of trusting the (possibly missing
+// or mismatched) filename extension — this is what stops a long-press save
+// from coming out as a generic ".bin" when MediaStore hands back a name
+// with no/odd extension.
+function mimeTypeFromBytes(bytes) {
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg'
+  if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return 'image/png'
+  if (bytes.length >= 6 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) return 'image/gif'
+  if (bytes.length >= 12 && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) return 'image/webp'
+  if (bytes.length >= 12 && bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) {
+    // ftyp box: covers mp4/mov/heic/heif/3gp — generic enough for <img>/<video> to decode correctly
+    const brand = String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11])
+    if (brand.startsWith('heic') || brand.startsWith('heix') || brand.startsWith('mif1')) return 'image/heic'
+    return 'video/mp4'
+  }
+  return null
+}
+
+function mimeTypeFor(filename, bytes) {
+  return mimeTypeFromBytes(bytes)
+    || MIME_BY_EXT[(filename || '').split('.').pop()?.toLowerCase()]
+    || 'application/octet-stream'
 }
 
 /**
  * Fetches a device file's bytes over the relay and returns a Blob — the
  * caller decides what to do with it (save to device, show a preview, or
  * both). The relay protocol itself only carries raw base64 chunks, so the
- * MIME type here is inferred from the filename extension, not the device.
+ * MIME type is sniffed from the actual file header, falling back to the
+ * filename extension only if that's inconclusive.
  */
 export async function downloadFile(employeeId, mediaId, filename) {
   const base64 = await send('get-file', employeeId, { mediaId })
   const byteChars = atob(base64)
   const bytes = new Uint8Array(byteChars.length)
   for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i)
-  return new Blob([bytes], { type: mimeTypeFor(filename) })
+  return new Blob([bytes], { type: mimeTypeFor(filename, bytes) })
 }
