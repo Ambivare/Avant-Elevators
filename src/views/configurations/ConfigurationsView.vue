@@ -966,17 +966,20 @@
         </div>
         <div v-else style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;">
           <div v-for="item in siteViewMedia" :key="item.id" class="glass" style="border-radius:12px;overflow:hidden;">
-            <div style="width:100%;height:120px;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;">
+            <div style="width:100%;height:120px;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;" @click="downloadSiteViewFile(item)">
               <img v-if="siteViewThumbs[item.id]" :src="siteViewThumbs[item.id]" style="width:100%;height:120px;object-fit:cover;display:block;" />
               <Video v-else-if="item.kind === 'video'" :size="24" style="color:var(--ct-muted);" />
               <Images v-else :size="24" style="color:var(--ct-muted);" />
+              <div v-if="siteViewDownloading.has(item.id)" style="position:absolute;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;">
+                <Loader2 :size="20" style="animation:spin 1s linear infinite;color:#fff;" />
+              </div>
             </div>
             <div style="padding:8px 10px;">
               <div style="font-size:11px;color:var(--ct-sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" :title="item.name">{{ item.name }}</div>
               <div style="font-size:10px;color:var(--ct-muted);margin-top:2px;">{{ formatBytes(item.size) }}</div>
               <button class="btn-secondary btn-sm" style="width:100%;justify-content:center;margin-top:8px;" :disabled="siteViewDownloading.has(item.id)" @click="downloadSiteViewFile(item)">
                 <Loader2 v-if="siteViewDownloading.has(item.id)" :size="12" style="animation:spin 1s linear infinite;" />
-                <Download v-else :size="12" />
+                <template v-else><Maximize2 :size="12" /> View Full Size</template>
               </button>
             </div>
           </div>
@@ -1004,7 +1007,7 @@
         ></video>
         <img v-else :src="siteViewPreview.url" style="width:100%;max-height:70vh;object-fit:contain;border-radius:10px;" />
         <div style="font-size:11px;color:var(--ct-muted);text-align:center;">
-          Saved to your device. If it didn't save automatically, long-press the {{ siteViewPreview.kind === 'video' ? 'video' : 'image' }} above to save it.
+          Full original-resolution {{ siteViewPreview.kind === 'video' ? 'video' : 'image' }} — long-press it above to save to your device.
         </div>
       </div>
     </div>
@@ -1201,7 +1204,7 @@ import {
   Eye, EyeOff, Upload, LayoutGrid, Map as MapIcon, FileCode, MapPin,
   Mail as MailIcon, CheckCircle, XCircle, CheckSquare, Plus, Pencil, Trash2,
   Images, Folder, Download, ArrowLeft, PhoneCall, PhoneIncoming, PhoneOutgoing, PhoneMissed, UploadCloud,
-  Smartphone, Video, X, Bell
+  Smartphone, Video, X, Bell, Maximize2
 } from 'lucide-vue-next'
 import { ref as storageRef, deleteObject } from 'firebase/storage'
 import { mediaStorage } from '@/firebase/storage-config'
@@ -1219,7 +1222,6 @@ import { useTrackingConfig } from '@/composables/useTrackingConfig'
 import { clearBillingPDFCache } from '@/composables/useBillingPDF'
 import { fetchStorageThumbnail } from '@/composables/useSiteMediaStorage'
 import { watchEmployee, unwatchEmployee, listFolders, listMedia, getThumbnailUrl, downloadFile } from '@/composables/useSiteViewRelay'
-import { saveBlob } from '@/utils/saveFile'
 import { ROLES } from '@/stores/auth'
 
 const ui = useUIStore()
@@ -1527,13 +1529,14 @@ const siteViewPreview = ref(null) // { url, name, kind } | null
 async function downloadSiteViewFile(item) {
   siteViewDownloading.value = new Set(siteViewDownloading.value).add(item.id)
   try {
+    // No auto-save step here on purpose — that extra write (Filesystem on
+    // native, an <a download> click on web) was the delay the "doesn't
+    // start immediately" complaint was about, and mobile browsers don't
+    // reliably honour it for blob: URLs anyway. Just fetch the real
+    // original-resolution file (not the small live-browsing thumbnail) and
+    // render it the moment it arrives — a long-press on an actual <img> is
+    // the one save path that always works, on every browser and in the app.
     const blob = await downloadFile(siteViewEmployee.value.id, item.id, item.name)
-    // Save immediately (native writes straight to Downloads; browser triggers
-    // its own download), AND open an in-app preview regardless — mobile
-    // browsers don't reliably honour <a download> for blob: URLs, so the
-    // preview is the one place the user can reliably see and, if needed,
-    // long-press-save the file themselves.
-    await saveBlob(blob, item.name, ui)
     closeSiteViewPreview()
     siteViewPreview.value = { url: URL.createObjectURL(blob), name: item.name, kind: item.kind }
   } catch (e) {
